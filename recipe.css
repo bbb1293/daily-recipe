@@ -1,0 +1,83 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  max-width: 780px;
+  margin: 2rem auto;
+  padding: 0 1.25rem 4rem;
+  line-height: 1.6;
+  color: #1f2328;
+  background: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  body { background: #0d1117; color: #e6edf3; }
+  hr { border-color: #30363d; }
+  code { background: #2d333b; }
+}
+
+h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid currentColor;
+  padding-bottom: .4rem;
+  margin-top: 1.5rem;
+}
+
+h2 {
+  font-size: 1.4rem;
+  margin-top: 2.2rem;
+  padding: .3rem .6rem;
+  border-left: 4px solid #0969da;
+  background: color-mix(in srgb, #0969da 8%, transparent);
+}
+
+h3, strong + p { margin-top: 1.2rem; }
+
+ul, ol { padding-left: 1.5rem; }
+li { margin: .25rem 0; }
+
+hr {
+  border: 0;
+  border-top: 1px dashed #d0d7de;
+  margin: 2.5rem 0;
+}
+
+strong {
+  font-weight: 600;
+}
+
+/* Highlight the MISSING ingredient markers */
+li strong:has(+ text), p strong {
+  /* generic bold stays as-is */
+}
+
+/* Catch "**(MISSING — need to buy)**" which becomes <strong>(MISSING — need to buy)</strong> */
+strong {
+  /* nothing by default */
+}
+
+li strong {
+  /* Style only strongs that match the missing pattern via :has is tricky;
+     use an attribute-ish heuristic by styling any strong containing "MISSING" via data not possible in pure CSS.
+     Instead we color strongs inside li that start with "(MISSING" — handled via JS-free selector trick below. */
+}
+
+/* Simpler: color any <strong> whose text begins with "(MISSING" — not selectable in CSS,
+   so we rely on a small post-processing step done by the build script to wrap it in <span class="missing">. */
+
+.missing {
+  color: #cf222e;
+  font-weight: 700;
+  background: color-mix(in srgb, #cf222e 10%, transparent);
+  padding: 0 .25rem;
+  border-radius: .25rem;
+}
+
+code {
+  background: #f6f8fa;
+  padding: .1em .3em;
+  border-radius: 4px;
+  font-size: 0.95em;
+}

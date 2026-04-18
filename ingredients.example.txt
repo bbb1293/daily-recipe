@@ -1,0 +1,10 @@
+# What you currently have on hand.
+# One ingredient per line. Lines starting with # are ignored.
+# Prefixes like "(frozen)" are fine — the recipe generator reads this verbatim.
+
+eggs
+spinach
+cherry tomatoes
+feta cheese
+red onion
+garlic

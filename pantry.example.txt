@@ -1,0 +1,12 @@
+# Pantry staples — always assumed available. Won't be flagged as MISSING.
+# Edit freely. One item per line. Lines starting with # are ignored.
+
+salt
+black pepper
+olive oil
+water
+sugar
+soy sauce
+garlic
+onion
+rice
