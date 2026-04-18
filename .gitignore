@@ -1,6 +1,7 @@
 # Personal state — keep local, not in git
 ingredients.txt
 pantry.txt
+recipes
 recipes/
 *.log
 .DS_Store
