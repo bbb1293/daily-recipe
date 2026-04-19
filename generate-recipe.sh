@@ -100,26 +100,32 @@ notify_discord() {
 
   local tmpdir
   tmpdir=$(mktemp -d)
-  # Split on "## " so each recipe posts as its own message. The document
-  # title stays with the first chunk (Option 1).
+  # Split on "## " so each recipe becomes its own embed/message.
   awk -v d="$tmpdir" '
     BEGIN { n = 1; f = d "/chunk-1.md" }
     /^## / { f = d "/chunk-" n ".md"; n++ }
     { print >> f }
   ' "$md_file"
 
-  local content
-  for chunk in "$tmpdir"/chunk-*.md(n); do
-    content=$(<"$chunk")
-    # Discord hard limit is 2000 chars; fall back to file attachment.
-    if (( ${#content} > 1900 )); then
-      curl -sS -F "payload_json={\"content\":\"Recipes for $date (attached)\"}" \
-               -F "file=@$chunk" "$DISCORD_WEBHOOK_URL" >> "$LOG_FILE" 2>&1 || true
-    else
-      jq -Rs '{content: .}' < "$chunk" \
-        | curl -sS -H "Content-Type: application/json" \
-               --data @- "$DISCORD_WEBHOOK_URL" >> "$LOG_FILE" 2>&1 || true
-    fi
+  local chunks=("$tmpdir"/chunk-*.md(n))
+  local last_idx=${#chunks}
+  local idx=0
+  local chunk title body color header payload
+  for chunk in "${chunks[@]}"; do
+    idx=$((idx + 1))
+    title=$(grep -m1 '^## ' "$chunk" | sed 's/^## //')
+    # Drop the H2 title line and any "# Recipes for ..." header from body.
+    body=$(sed '/^## /d; /^# Recipes for /d' "$chunk")
+    # Green for on-hand options, orange for the final "Recommended" chunk.
+    if (( idx == last_idx )); then color=15105570; else color=3066993; fi
+    # Discord embed description cap is 4096; truncate defensively.
+    (( ${#body} > 4000 )) && body="${body:0:3996}…"
+    # Only the first message carries the "Recipes for DATE" header line.
+    header=""; (( idx == 1 )) && header="**Recipes for $date**"
+    payload=$(jq -n --arg h "$header" --arg t "$title" --arg b "$body" --argjson c "$color" \
+      '{content: $h, embeds: [{title: $t, description: $b, color: $c}]}')
+    curl -sS -H "Content-Type: application/json" --data "$payload" \
+      "$DISCORD_WEBHOOK_URL" >> "$LOG_FILE" 2>&1 || true
   done
   rm -rf "$tmpdir"
 }
