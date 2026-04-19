@@ -1,16 +1,16 @@
 # daily-recipe
 
-A local macOS tool that generates **three recipe options every night for the next day's meal**, based on what's currently in your kitchen.
+A local macOS tool that generates **three on-hand recipes plus one recommended stretch recipe every night for the next day's meal**, based on what's currently in your kitchen.
 
-It reads `ingredients.txt` (what you have) and `pantry.txt` (staples always available), calls the `claude` CLI to draft three distinct recipes that use those ingredients, renders them to a styled HTML page, and pops a macOS dialog at 10:00 PM so you can pick one before bed.
+It reads `ingredients.txt` (what you have) and `pantry.txt` (staples always available), calls the `claude` CLI to draft three recipes that use only those ingredients plus one "stretch" recipe that may add 1–2 items worth a quick shop, renders them to a styled HTML page, and pops a macOS dialog at 10:00 PM so you can pick one before bed.
 
 ---
 
 ## Features
 
-- **Three distinct recipe options per day** — pick the one you feel like cooking.
+- **Three on-hand options + one stretch recipe per day.** Part A gives three zero-friction recipes using only what's already in your kitchen; Part B recommends one slightly more ambitious dish that may call for 1–2 extra items worth a quick shop.
 - **Uses what you actually have.** Reads a plain-text list of ingredients and pantry staples.
-- **Shopping list is obvious.** Anything a recipe needs that isn't on either list is tagged `(MISSING — need to buy)` and highlighted in red in the rendered HTML.
+- **Shopping list is obvious.** In the stretch recipe, anything not already on hand is tagged `(MISSING — need to buy)` and highlighted in red in the rendered HTML. The three on-hand options never contain MISSING items.
 - **Detailed recipes.** Exact grams / tbsp / tsp quantities and exact times & temperatures — no vague "a bit of".
 - **Diverse rotation.** Feeds the last 7 days of recipes back into the prompt as "avoid repeating these" so you don't see kimchi stir-fry three days in a row.
 - **Simple & healthy bias.** Short cooking time, balanced macros, no deep-fry-heavy suggestions.
@@ -74,7 +74,7 @@ After step 4 the generator runs at **10:00 PM local time** each day, producing t
 At 10:00 PM `launchd` fires `generate-recipe.sh`, which:
 
 1. Reads `ingredients.txt` and `pantry.txt`.
-2. Prompts `claude` for three recipe options for tomorrow.
+2. Prompts `claude` for three on-hand recipes plus one recommended stretch recipe for tomorrow.
 3. Writes `recipes/YYYY-MM-DD.md` and a styled `recipes/YYYY-MM-DD.html`.
 4. Pops a macOS dialog — click **Open** to view the rendered HTML in your browser, or **Later** to dismiss.
 
@@ -85,7 +85,7 @@ If your Mac is asleep at 10pm, `launchd` fires the job the next time it wakes.
 The same script is exposed as `recipe`:
 
 ```sh
-recipe                           # Generate for tomorrow (skip if already generated)
+recipe                           # Generate tomorrow's recipes (skip if already generated)
 recipe --today                   # Generate for today
 recipe --date 2026-05-01         # Generate for a specific date
 recipe --force                   # Regenerate even if the target file exists
@@ -127,7 +127,7 @@ Both files are plain text, one item per line. Lines starting with `#` are ignore
 
 `pantry.txt` — staples you *always* have. Items here are assumed available and **never** tagged as missing. Adjust to match your kitchen.
 
-If a recipe needs something that's not on either list, it's tagged `(MISSING — need to buy)` in the output — that's your shopping list for the day.
+The three on-hand options never reach beyond your lists. The recommended stretch recipe may add up to two items, each tagged `(MISSING — need to buy)` — that's your (optional) shopping list for the day.
 
 ---
 
@@ -148,7 +148,7 @@ Edit `recipe.css`. The page uses system fonts and respects light/dark mode via `
 
 ### Change what the LLM is asked for
 
-The prompt lives inside `generate-recipe.sh` (search for `You are a home cook`). Adjust the five numbered criteria, output format, or history-window size (currently the last 7 days) directly.
+The prompt lives inside `generate-recipe.sh` (search for `You are a home cook`). It's split into Part A (three on-hand recipes) and Part B (one recommended stretch recipe). Adjust the numbered criteria, part structure, output format, or history-window size (currently the last 7 days) directly.
 
 ---
 
