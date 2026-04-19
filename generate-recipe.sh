@@ -11,6 +11,11 @@ LOG_FILE="$FOOD_DIR/generate-recipe.log"
 
 export PATH="/Users/mac/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
+# Optional local config (gitignored). See config.sh.example.
+if [[ -f "$FOOD_DIR/config.sh" ]]; then
+  source "$FOOD_DIR/config.sh"
+fi
+
 usage() {
   cat <<EOF
 Usage: recipe [OPTIONS]
@@ -22,22 +27,26 @@ Options:
   --date YYYY-MM-DD       Generate for a specific date
   --force                 Regenerate even if the target file exists
   --print                 Print the recipe to stdout instead of opening a dialog
+  --notify discord        Post the recipe to a Discord webhook
   -h, --help              Show this help
 
 When run from a terminal, output prints to stdout by default.
 When run headless (e.g. launchd), a dialog pops up with an Open button.
+With --notify discord, set DISCORD_WEBHOOK_URL in config.sh (see config.sh.example).
 EOF
 }
 
 TARGET_DATE=""
 FORCE=false
 FORCE_PRINT=false
+NOTIFY=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --today) TARGET_DATE=$(date +%Y-%m-%d); shift ;;
     --date) TARGET_DATE="$2"; shift 2 ;;
     --force) FORCE=true; shift ;;
     --print) FORCE_PRINT=true; shift ;;
+    --notify) NOTIFY="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -81,6 +90,40 @@ notify_dialog() {
   fi
 }
 
+notify_discord() {
+  local md_file="$1"
+  local date="$2"
+  if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
+    log "DISCORD_WEBHOOK_URL not set — skipping Discord notification."
+    return 1
+  fi
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  # Split on "## " so each recipe posts as its own message. The document
+  # title stays with the first chunk (Option 1).
+  awk -v d="$tmpdir" '
+    BEGIN { n = 1; f = d "/chunk-1.md" }
+    /^## / { f = d "/chunk-" n ".md"; n++ }
+    { print >> f }
+  ' "$md_file"
+
+  local content
+  for chunk in "$tmpdir"/chunk-*.md(n); do
+    content=$(<"$chunk")
+    # Discord hard limit is 2000 chars; fall back to file attachment.
+    if (( ${#content} > 1900 )); then
+      curl -sS -F "payload_json={\"content\":\"Recipes for $date (attached)\"}" \
+               -F "file=@$chunk" "$DISCORD_WEBHOOK_URL" >> "$LOG_FILE" 2>&1 || true
+    else
+      jq -Rs '{content: .}' < "$chunk" \
+        | curl -sS -H "Content-Type: application/json" \
+               --data @- "$DISCORD_WEBHOOK_URL" >> "$LOG_FILE" 2>&1 || true
+    fi
+  done
+  rm -rf "$tmpdir"
+}
+
 mkdir -p "$RECIPES_DIR"
 
 render_html() {
@@ -111,6 +154,7 @@ if [[ -f "$OUTPUT_FILE" && "$FORCE" != "true" ]]; then
   if [[ "$INTERACTIVE" == "true" ]]; then
     cat "$OUTPUT_FILE"
   fi
+  [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "$TARGET_DATE"
   exit 0
 fi
 
@@ -202,6 +246,7 @@ if claude -p "$PROMPT" > "$OUTPUT_FILE" 2>> "$LOG_FILE"; then
     [[ -f "$HTML_FILE" ]] || open_path="$OUTPUT_FILE"
     notify_dialog "Recipes for $TARGET_DATE" "Three recipe options are ready. Open to pick one." "$open_path"
   fi
+  [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "$TARGET_DATE"
 else
   log "claude CLI failed, see log above."
   rm -f "$OUTPUT_FILE"

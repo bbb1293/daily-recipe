@@ -3,5 +3,6 @@ ingredients.txt
 pantry.txt
 recipes
 recipes/
+config.sh
 *.log
 .DS_Store

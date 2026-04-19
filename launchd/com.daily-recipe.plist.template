@@ -5,9 +5,13 @@
     <key>Label</key>
     <string>com.user.daily-recipe</string>
 
+    <!-- Remove the --notify args if you don't use the Discord integration.
+         When enabled, set DISCORD_WEBHOOK_URL in config.sh (see config.sh.example). -->
     <key>ProgramArguments</key>
     <array>
         <string>__PROJECT_DIR__/generate-recipe.sh</string>
+        <string>--notify</string>
+        <string>discord</string>
     </array>
 
     <key>StartCalendarInterval</key>
