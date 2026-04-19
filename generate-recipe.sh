@@ -138,13 +138,19 @@ if (( ${#RECIPE_FILES[@]} > 0 )); then
   done
 fi
 
-PROMPT="You are a home cook planning a meal for $TARGET_DATE. Propose THREE distinct recipe options so the user can pick one. Each recipe must satisfy ALL of these:
+PROMPT="You are a home cook planning a meal for $TARGET_DATE. Produce a single markdown document with TWO parts:
 
+PART A — Three 'cook-right-now' options:
+Propose THREE distinct recipe options that use ONLY the 'Ingredients on hand' and 'Pantry staples' listed below. NO MISSING items. NO shopping trip. Every ingredient in these three recipes must come from one of the two lists. If you catch yourself wanting to add something not in either list, pick a different dish instead.
+
+PART B — One 'recommended' recipe (stretch option):
+After the three options, propose ONE additional recipe that the user should consider making if they're willing to buy 1–2 small items. Use everything on hand + pantry PLUS at most TWO additional ingredients. Each of those added ingredients MUST be clearly tagged '**(MISSING — need to buy)**'. Aim for something a bit more exciting or elevated than the three constrained options — the kind of dish worth a quick shop.
+
+Every recipe (A and B) must satisfy:
 1. SIMPLE: low cooking time (prefer <= 30 min active) and low effort (few steps, minimal equipment).
 2. NUTRITIOUS & HEALTHY: balanced protein, veg, and whole ingredients. Avoid deep-frying and heavy processed ingredients.
-3. USE THE INGREDIENTS ON HAND below. Pantry staples listed separately are ALWAYS available and must NOT be tagged as missing. If a recipe needs something that is NOT in either list, that is fine — but you MUST clearly mark each such added ingredient with '**(MISSING — need to buy)**' so the user can see at a glance what to shop for.
-4. DETAILED: give exact quantities (grams, tsp, tbsp, cups) and exact times/temperatures (e.g., 'sauté 3–4 min over medium heat', 'bake at 200°C for 12 min'). No vague 'some' or 'a bit'.
-5. DIVERSE: the three options should differ from each other in cuisine, main protein, or cooking method. Also AVOID repeating recipes from the recent history below — no same dish, and try to vary cuisine/protein/method from the last few days.
+3. DETAILED: give exact quantities (grams, tsp, tbsp, cups) and exact times/temperatures (e.g., 'sauté 3–4 min over medium heat', 'bake at 200°C for 12 min'). No vague 'some' or 'a bit'.
+4. DIVERSE: the three 'cook-now' options should differ from each other in cuisine, main protein, or cooking method. The recommended recipe should also differ. AVOID repeating recipes from the recent history below — no same dish; try to vary cuisine/protein/method from the last few days.
 
 Ingredients on hand:
 $INGREDIENTS
@@ -155,12 +161,30 @@ $PANTRY
 Recent recipes (avoid repeating these):
 $RECENT_RECIPES
 
-Output format: a single markdown document with an H1 title like '# Recipes for $TARGET_DATE', then THREE sections, each starting with '## Option N: <Dish Name>'. Under each option include:
-- One-line description
-- **Prep time** / **Cook time** / **Serves**
-- **Ingredients** list with exact quantities; missing items tagged as shown above
-- **Steps** as a numbered list with exact times and temperatures
-- **Why it's healthy** — one short line
+Output format (a single markdown document):
+
+# Recipes for $TARGET_DATE
+
+## Option 1: <Dish Name>
+One-line description.
+**Prep time**: X min | **Cook time**: X min | **Serves**: X
+**Ingredients**
+- exact quantities (no MISSING tags — every item is on hand or pantry)
+**Steps**
+1. Numbered with exact times & temperatures.
+**Why it's healthy**: one short line.
+
+## Option 2: ...
+## Option 3: ...
+
+---
+
+## Recommended: <Dish Name> (needs 1–2 extra items)
+One-line description explaining why this is worth a small shop.
+**Prep time** / **Cook time** / **Serves**
+**Ingredients** — with exactly 1 or 2 items tagged '**(MISSING — need to buy)**'; all others from the two lists.
+**Steps** — numbered with exact times & temps.
+**Why it's healthy**: one short line.
 
 Output only the markdown, no preamble."
 
