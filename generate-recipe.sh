@@ -214,7 +214,7 @@ After the three options, propose ONE additional recipe that the user should cons
 Every recipe (A and B) must satisfy:
 1. SIMPLE: low cooking time (prefer <= 30 min active) and low effort (few steps, minimal equipment).
 2. NUTRITIOUS & HEALTHY: balanced protein, veg, and whole ingredients. Avoid deep-frying and heavy processed ingredients.
-3. DETAILED: give exact quantities (grams, tsp, tbsp, cups) and exact times/temperatures (e.g., 'sauté 3–4 min over medium heat', 'bake at 200°C for 12 min'). No vague 'some' or 'a bit'.
+3. DETAILED: give exact quantities (grams, tsp, tbsp, cups) and exact times/temperatures (e.g., 'sauté 3–4 min over medium heat', 'bake at 200°C for 12 min'). No vague 'some' or 'a bit'. In the Steps, repeat the measurable quantity inline the first time each ingredient is added (e.g., 'sauté the 150 g diced onion for 3 min', 'pour in 200 ml stock'). Skip restating quantity for trivial mentions like 'the remaining sauce' or 'the cooked pasta'.
 4. DIVERSE: the three 'cook-now' options should differ from each other in cuisine, main protein, or cooking method. The recommended recipe should also differ. AVOID repeating recipes from the recent history below — no same dish; try to vary cuisine/protein/method from the last few days.$URGENT_RULE
 
 Ingredients on hand:
