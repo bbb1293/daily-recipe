@@ -1,5 +1,13 @@
 # Project instructions
 
+## Layout
+
+Main logic lives in `generate-recipe.sh`. Data files are `ingredients.txt`, `pantry.txt`, and `recipes/`.
+
+## Response style
+
+Skip preamble and end-of-turn summaries. Answer directly.
+
 ## Feature suggestions
 
 When the user proposes a feature, if you see a clearly better alternative (simpler, more reliable, or better fits the codebase), say so before implementing. Don't bikeshed minor stylistic choices — only speak up when the alternative is meaningfully better.
