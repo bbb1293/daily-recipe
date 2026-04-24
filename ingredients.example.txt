@@ -1,9 +1,11 @@
 # What you currently have on hand.
 # One ingredient per line. Lines starting with # are ignored.
 # Prefixes like "(frozen)" are fine — the recipe generator reads this verbatim.
+# Suffix an item with "!urgent" if it's close to expiring — every on-hand
+# recipe will be required to use at least one urgent item.
 
 eggs
-spinach
+spinach !urgent
 cherry tomatoes
 feta cheese
 red onion

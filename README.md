@@ -10,6 +10,7 @@ It reads `ingredients.txt` (what you have) and `pantry.txt` (staples always avai
 
 - **Three on-hand options + one stretch recipe per day.** Part A gives three zero-friction recipes using only what's already in your kitchen; Part B recommends one slightly more ambitious dish that may call for 1–2 extra items worth a quick shop.
 - **Uses what you actually have.** Reads a plain-text list of ingredients and pantry staples.
+- **Freshness-aware.** Suffix any item with `!urgent` in `ingredients.txt` and every on-hand recipe is required to use at least one urgent item — good for ingredients close to expiration.
 - **Shopping list is obvious.** In the stretch recipe, anything not already on hand is tagged `(MISSING — need to buy)` and highlighted in red in the rendered HTML. The three on-hand options never contain MISSING items.
 - **Detailed recipes.** Exact grams / tbsp / tsp quantities and exact times & temperatures — no vague "a bit of".
 - **Diverse rotation.** Feeds the last 7 days of recipes back into the prompt as "avoid repeating these" so you don't see kimchi stir-fry three days in a row.
@@ -138,7 +139,7 @@ Behavior differs by how it's invoked:
 
 Both files are plain text, one item per line. Lines starting with `#` are ignored.
 
-`ingredients.txt` — things sitting in your fridge/freezer/counter right now. This is what you're trying to "use up". Add tags like `(frozen)` if you want the recipe to know.
+`ingredients.txt` — things sitting in your fridge/freezer/counter right now. This is what you're trying to "use up". Add tags like `(frozen)` if you want the recipe to know. Suffix any line with `!urgent` (e.g. `spinach !urgent`) for items close to expiration — every one of the three on-hand recipes will be required to use at least one urgent item.
 
 `pantry.txt` — staples you *always* have. Items here are assumed available and **never** tagged as missing. Adjust to match your kitchen.
 

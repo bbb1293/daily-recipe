@@ -164,11 +164,26 @@ if [[ -f "$OUTPUT_FILE" && "$FORCE" != "true" ]]; then
   exit 0
 fi
 
-INGREDIENTS=$(grep -v '^\s*#' "$INGREDIENTS_FILE" | grep -v '^\s*$' || true)
+INGREDIENTS_RAW=$(grep -v '^\s*#' "$INGREDIENTS_FILE" | grep -v '^\s*$' || true)
 
-if [[ -z "$INGREDIENTS" ]]; then
+if [[ -z "$INGREDIENTS_RAW" ]]; then
   log "ingredients.txt is empty, skipping."
   exit 0
+fi
+
+# Items suffixed with "!urgent" are close to expiring and must be used first.
+URGENT=$(echo "$INGREDIENTS_RAW" | grep '!urgent' | sed -E 's/[[:space:]]*!urgent[[:space:]]*$//' || true)
+INGREDIENTS=$(echo "$INGREDIENTS_RAW" | sed -E 's/[[:space:]]*!urgent[[:space:]]*$//')
+
+URGENT_SECTION=""
+URGENT_RULE=""
+if [[ -n "$URGENT" ]]; then
+  URGENT_SECTION="
+
+URGENT — close to expiration, must be used first (a subset of the on-hand list above):
+$URGENT"
+  URGENT_RULE="
+5. URGENT PRIORITY: every one of the three 'cook-now' options must use at least one 'URGENT' item. If a single recipe can use several urgent items together, prefer that. The recommended stretch recipe should also lean on urgent items when it fits."
 fi
 
 PANTRY=""
@@ -200,10 +215,10 @@ Every recipe (A and B) must satisfy:
 1. SIMPLE: low cooking time (prefer <= 30 min active) and low effort (few steps, minimal equipment).
 2. NUTRITIOUS & HEALTHY: balanced protein, veg, and whole ingredients. Avoid deep-frying and heavy processed ingredients.
 3. DETAILED: give exact quantities (grams, tsp, tbsp, cups) and exact times/temperatures (e.g., 'sauté 3–4 min over medium heat', 'bake at 200°C for 12 min'). No vague 'some' or 'a bit'.
-4. DIVERSE: the three 'cook-now' options should differ from each other in cuisine, main protein, or cooking method. The recommended recipe should also differ. AVOID repeating recipes from the recent history below — no same dish; try to vary cuisine/protein/method from the last few days.
+4. DIVERSE: the three 'cook-now' options should differ from each other in cuisine, main protein, or cooking method. The recommended recipe should also differ. AVOID repeating recipes from the recent history below — no same dish; try to vary cuisine/protein/method from the last few days.$URGENT_RULE
 
 Ingredients on hand:
-$INGREDIENTS
+$INGREDIENTS$URGENT_SECTION
 
 Pantry staples (always available, do NOT tag as missing):
 $PANTRY
