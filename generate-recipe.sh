@@ -255,7 +255,7 @@ Output only the markdown, no preamble."
 
 log "Generating recipes for $TARGET_DATE..."
 
-if claude -p --tools "" "$PROMPT" > "$OUTPUT_FILE" 2>> "$LOG_FILE"; then
+if printf '%s' "$PROMPT" | claude -p --tools "" > "$OUTPUT_FILE" 2>> "$LOG_FILE"; then
   log "Wrote $OUTPUT_FILE"
   if render_html "$OUTPUT_FILE" "$HTML_FILE"; then
     log "Rendered $HTML_FILE"
