@@ -71,6 +71,7 @@ log() {
 }
 
 notify_dialog() {
+  [[ -n "$NOTIFY" ]] && return
   local title="$1"
   local message="$2"
   local open_path="${3:-}"
@@ -255,7 +256,7 @@ Output only the markdown, no preamble."
 
 log "Generating recipes for $TARGET_DATE..."
 
-if printf '%s' "$PROMPT" | claude -p --tools "" > "$OUTPUT_FILE" 2>> "$LOG_FILE"; then
+if printf '%s' "$PROMPT" | perl -e 'alarm 600; exec @ARGV' claude -p --tools "" > "$OUTPUT_FILE" 2>> "$LOG_FILE"; then
   log "Wrote $OUTPUT_FILE"
   if render_html "$OUTPUT_FILE" "$HTML_FILE"; then
     log "Rendered $HTML_FILE"
