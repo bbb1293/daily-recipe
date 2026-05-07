@@ -13,7 +13,7 @@ It reads `ingredients.txt` (what you have) and `pantry.txt` (staples always avai
 - **Freshness-aware.** Suffix any item with `!urgent` in `ingredients.txt` and every on-hand recipe is required to use at least one urgent item — good for ingredients close to expiration.
 - **Shopping list is obvious.** In the stretch recipe, anything not already on hand is tagged `(MISSING — need to buy)` and highlighted in red in the rendered HTML. The three on-hand options never contain MISSING items.
 - **Detailed recipes.** Exact grams / tbsp / tsp quantities and exact times & temperatures — no vague "a bit of".
-- **Diverse rotation.** Feeds the last 7 days of recipes back into the prompt as "avoid repeating these" so you don't see kimchi stir-fry three days in a row.
+- **Diverse rotation.** Feeds the last 3 days of recipes back into the prompt as "avoid repeating these" so you don't see kimchi stir-fry three days in a row.
 - **Simple & healthy bias.** Short cooking time, balanced macros, no deep-fry-heavy suggestions.
 - **Scheduled nightly.** A macOS `launchd` job runs the generator at 10:00 PM; a dialog pops with an **Open** button that launches the styled HTML in your default browser.
 - **Runnable from the command line too.** A `recipe` command with flags for ad-hoc generation.
@@ -164,7 +164,7 @@ Edit `recipe.css`. The page uses system fonts and respects light/dark mode via `
 
 ### Change what the LLM is asked for
 
-The prompt lives inside `generate-recipe.sh` (search for `You are a home cook`). It's split into Part A (three on-hand recipes) and Part B (one recommended stretch recipe). Adjust the numbered criteria, part structure, output format, or history-window size (currently the last 7 days) directly.
+The prompt lives inside `generate-recipe.sh` (search for `You are a home cook`). It's split into Part A (three on-hand recipes) and Part B (one recommended stretch recipe). Adjust the numbered criteria, part structure, output format, or history-window size (currently the last 3 days) directly.
 
 ### Disable Discord posting
 
