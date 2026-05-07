@@ -197,7 +197,7 @@ setopt NULL_GLOB
 RECIPE_FILES=("$RECIPES_DIR"/*.md(Nom))
 unsetopt NULL_GLOB
 if (( ${#RECIPE_FILES[@]} > 0 )); then
-  for f in "${RECIPE_FILES[@]:0:7}"; do
+  for f in "${RECIPE_FILES[@]:0:3}"; do
     RECENT_RECIPES+=$'\n--- '"$(basename "$f" .md)"$' ---\n'
     RECENT_RECIPES+="$(cat "$f")"
     RECENT_RECIPES+=$'\n'
