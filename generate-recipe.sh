@@ -93,7 +93,7 @@ notify_dialog() {
 
 notify_discord() {
   local md_file="$1"
-  local date="$2"
+  local header_text="$2"
   if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
     log "DISCORD_WEBHOOK_URL not set — skipping Discord notification."
     return 1
@@ -115,14 +115,14 @@ notify_discord() {
   for chunk in "${chunks[@]}"; do
     idx=$((idx + 1))
     title=$(grep -m1 '^## ' "$chunk" | sed 's/^## //')
-    # Drop the H2 title line and any "# Recipes for ..." header from body.
-    body=$(sed '/^## /d; /^# Recipes for /d' "$chunk")
-    # Green for on-hand options, orange for the final "Recommended" chunk.
-    if (( idx == last_idx )); then color=15105570; else color=3066993; fi
+    # Drop the H2 title line and any "# Recipes for ..." or "# Recipe with ..." header from body.
+    body=$(sed '/^## /d; /^# Recipe/d' "$chunk")
+    # Green for on-hand options, orange for the final chunk only when there are multiple chunks.
+    if (( idx == last_idx && last_idx > 1 )); then color=15105570; else color=3066993; fi
     # Discord embed description cap is 4096; truncate defensively.
     (( ${#body} > 4000 )) && body="${body:0:3996}…"
-    # Only the first message carries the "Recipes for DATE" header line.
-    header=""; (( idx == 1 )) && header="**Recipes for $date**"
+    # Only the first message carries the supplied header line.
+    header=""; (( idx == 1 )) && header="$header_text"
     payload=$(jq -n --arg h "$header" --arg t "$title" --arg b "$body" --argjson c "$color" \
       '{content: $h, embeds: [{title: $t, description: $b, color: $c}]}')
     curl -sS -H "Content-Type: application/json" --data "$payload" \
@@ -161,7 +161,7 @@ if [[ -f "$OUTPUT_FILE" && "$FORCE" != "true" ]]; then
   if [[ "$INTERACTIVE" == "true" ]]; then
     cat "$OUTPUT_FILE"
   fi
-  [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "$TARGET_DATE"
+  [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "**Recipes for $TARGET_DATE**"
   exit 0
 fi
 
@@ -268,7 +268,7 @@ if printf '%s' "$PROMPT" | perl -e 'alarm 600; exec @ARGV' claude -p --tools "" 
     [[ -f "$HTML_FILE" ]] || open_path="$OUTPUT_FILE"
     notify_dialog "Recipes for $TARGET_DATE" "Three recipe options are ready. Open to pick one." "$open_path"
   fi
-  [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "$TARGET_DATE"
+  [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "**Recipes for $TARGET_DATE**"
 else
   log "claude CLI failed, see log above."
   rm -f "$OUTPUT_FILE"
