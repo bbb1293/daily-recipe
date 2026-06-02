@@ -61,20 +61,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if (( ${#USE_ITEMS[@]} > 0 )); then
-  if [[ -n "$TARGET_DATE" || "$FORCE" == "true" ]]; then
-    echo "--use cannot be combined with --date/--today/--force" >&2
-    exit 2
-  fi
-  echo "--use is not yet implemented" >&2
-  exit 1
-fi
-
-TARGET_DATE="${TARGET_DATE:-$(date -v+1d +%Y-%m-%d)}"
-OUTPUT_FILE="$RECIPES_DIR/$TARGET_DATE.md"
-HTML_FILE="$RECIPES_DIR/$TARGET_DATE.html"
-CSS_FILE="$FOOD_DIR/recipe.css"
-
 if [[ -t 1 ]] || [[ "$FORCE_PRINT" == "true" ]]; then
   INTERACTIVE=true
 else
@@ -150,6 +136,110 @@ notify_discord() {
 }
 
 mkdir -p "$RECIPES_DIR"
+
+if (( ${#USE_ITEMS[@]} > 0 )); then
+  if [[ -n "$TARGET_DATE" || "$FORCE" == "true" ]]; then
+    echo "--use cannot be combined with --date/--today/--force" >&2
+    exit 2
+  fi
+
+  # zsh-specific: join array elements with ", " for the header line.
+  NAMED_JOINED="${(j:, :)USE_ITEMS}"
+  # One item per line, for the prompt body.
+  NAMED_LIST=$(printf '%s\n' "${USE_ITEMS[@]}")
+
+  # Collect data (parallels the daily flow further below).
+  # In --use mode an empty ingredients.txt is OK: the pantry and the named
+  # items together can still yield a recipe.
+  INGREDIENTS_RAW=$(grep -v '^\s*#' "$INGREDIENTS_FILE" 2>/dev/null | grep -v '^\s*$' || true)
+  URGENT=$(echo "$INGREDIENTS_RAW" | grep '!urgent' | sed -E 's/[[:space:]]*!urgent[[:space:]]*$//' || true)
+  INGREDIENTS=$(echo "$INGREDIENTS_RAW" | sed -E 's/[[:space:]]*!urgent[[:space:]]*$//')
+  URGENT_SECTION=""
+  if [[ -n "$URGENT" ]]; then
+    URGENT_SECTION="
+
+URGENT — close to expiration, prefer to use when natural (a subset of the on-hand list above):
+$URGENT"
+  fi
+
+  PANTRY=""
+  if [[ -f "$PANTRY_FILE" ]]; then
+    PANTRY=$(grep -v '^\s*#' "$PANTRY_FILE" | grep -v '^\s*$' || true)
+  fi
+
+  RECENT_RECIPES=""
+  setopt NULL_GLOB
+  RECIPE_FILES=("$RECIPES_DIR"/*.md(Nom))
+  unsetopt NULL_GLOB
+  if (( ${#RECIPE_FILES[@]} > 0 )); then
+    for f in "${RECIPE_FILES[@]:0:3}"; do
+      RECENT_RECIPES+=$'\n--- '"$(basename "$f" .md)"$' ---\n'
+      RECENT_RECIPES+="$(cat "$f")"
+      RECENT_RECIPES+=$'\n'
+    done
+  fi
+
+  USE_PROMPT="You are a home cook. Build ONE recipe that uses ALL of these named ingredients (the user specifically wants to cook with them):
+
+Named ingredients (must all appear in the recipe):
+$NAMED_LIST
+
+Pull remaining ingredients from the on-hand list and pantry below. Any item in the Named list that is NOT present in either 'Ingredients on hand' or 'Pantry staples' MUST be tagged '**(MISSING — need to buy)**' in the Ingredients section of the output.
+
+The recipe must satisfy:
+1. SIMPLE: low cooking time (prefer <= 30 min active) and few steps, minimal equipment.
+2. NUTRITIOUS & HEALTHY: balanced protein, veg, whole ingredients. Avoid deep-frying and heavy processed ingredients.
+3. DETAILED: exact quantities (grams, tsp, tbsp, cups) and exact times/temperatures (e.g., 'sauté 3–4 min over medium heat', 'bake at 200°C for 12 min'). No vague 'some' or 'a bit'. In the Steps, repeat the measurable quantity inline the first time each ingredient is added.
+4. AVOID repeating any of the recent recipes below.
+5. Prefer URGENT items below when they fit naturally, but the Named ingredients are the priority.
+
+Ingredients on hand:
+$INGREDIENTS$URGENT_SECTION
+
+Pantry staples (always available, do NOT tag as missing):
+$PANTRY
+
+Recent recipes (avoid repeating these):
+$RECENT_RECIPES
+
+Output format (a single markdown document):
+
+# Recipe with $NAMED_JOINED
+
+## <Dish Name>
+One-line description.
+**Prep time**: X min | **Cook time**: X min | **Serves**: X
+**Ingredients**
+- exact quantities; any item from the Named list that wasn't in on-hand/pantry is tagged '**(MISSING — need to buy)**'
+**Steps**
+1. Numbered with exact times & temperatures.
+**Why it's healthy**: one short line.
+
+Output only the markdown, no preamble."
+
+  log "Generating --use recipe for: $NAMED_JOINED"
+
+  if RECIPE_MD=$(printf '%s' "$USE_PROMPT" | perl -e 'alarm 600; exec @ARGV' claude -p --tools "" 2>> "$LOG_FILE"); then
+    log "Generated --use recipe."
+    printf '%s\n' "$RECIPE_MD"
+    if [[ "$NOTIFY" == "discord" ]]; then
+      tmpfile=$(mktemp)
+      printf '%s' "$RECIPE_MD" > "$tmpfile"
+      notify_discord "$tmpfile" "**Recipe with $NAMED_JOINED**"
+      rm -f "$tmpfile"
+    fi
+    exit 0
+  else
+    log "claude CLI failed for --use, see log above."
+    echo "Recipe generation failed. See $LOG_FILE." >&2
+    exit 1
+  fi
+fi
+
+TARGET_DATE="${TARGET_DATE:-$(date -v+1d +%Y-%m-%d)}"
+OUTPUT_FILE="$RECIPES_DIR/$TARGET_DATE.md"
+HTML_FILE="$RECIPES_DIR/$TARGET_DATE.html"
+CSS_FILE="$FOOD_DIR/recipe.css"
 
 render_html() {
   local md="$1"
