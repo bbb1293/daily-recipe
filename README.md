@@ -102,6 +102,8 @@ recipe --date 2026-05-01         # Generate for a specific date
 recipe --force                   # Regenerate even if the target file exists
 recipe --print                   # Force print to stdout (useful inside pipelines)
 recipe --notify discord          # Also post the result to a Discord webhook
+recipe --use chicken             # Generate one recipe centered on a specific ingredient
+recipe --use chicken --use rice  # Repeatable; all named items must appear
 recipe --help
 ```
 
@@ -111,6 +113,17 @@ Behavior differs by how it's invoked:
 - **Headless** (launchd, cron, pipes): a modal dialog pops with **Later** / **Open** buttons.
 
 `--notify discord` posts every time the script runs, whether the recipe was freshly generated or already existed. If you re-run for the same date the channel will get another copy — useful for re-reading on your phone, noisy if you trigger the script repeatedly.
+
+### Cook with a specific ingredient
+
+If you want a recipe centered on something specific — say you just bought chicken and want ideas — use `--use`:
+
+```sh
+recipe --use chicken
+recipe --use chicken --use spinach --notify discord
+```
+
+This generates a single recipe that must include every named ingredient. Remaining ingredients are drawn from `ingredients.txt` and `pantry.txt`. Any named ingredient that isn't on either list is tagged `(MISSING — need to buy)` in the output. The recipe is printed to stdout (and posted to Discord with `--notify discord`); it is not saved to `recipes/` and does not render HTML. `--use` cannot be combined with `--date`, `--today`, or `--force`.
 
 ---
 
