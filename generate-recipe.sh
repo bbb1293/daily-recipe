@@ -22,12 +22,19 @@ Usage: recipe [OPTIONS]
 
 Generates three recipe options for a given day using ingredients.txt and pantry.txt.
 
+With --use, generates a single ad-hoc recipe centered on the named ingredient(s)
+instead. Output goes to stdout (and Discord with --notify discord). It is not
+saved to recipes/ and does not render HTML.
+
 Options:
   --today                 Generate for today (default: tomorrow)
   --date YYYY-MM-DD       Generate for a specific date
   --force                 Regenerate even if the target file exists
   --print                 Print the recipe to stdout instead of opening a dialog
   --notify discord        Post the recipe to a Discord webhook
+  --use INGREDIENT        Generate one recipe centered on INGREDIENT.
+                          Repeatable: --use chicken --use spinach.
+                          Cannot be combined with --date/--today/--force.
   -h, --help              Show this help
 
 When run from a terminal, output prints to stdout by default.
@@ -40,6 +47,7 @@ TARGET_DATE=""
 FORCE=false
 FORCE_PRINT=false
 NOTIFY=""
+USE_ITEMS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --today) TARGET_DATE=$(date +%Y-%m-%d); shift ;;
@@ -47,10 +55,20 @@ while [[ $# -gt 0 ]]; do
     --force) FORCE=true; shift ;;
     --print) FORCE_PRINT=true; shift ;;
     --notify) NOTIFY="$2"; shift 2 ;;
+    --use) USE_ITEMS+=("$2"); shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+if (( ${#USE_ITEMS[@]} > 0 )); then
+  if [[ -n "$TARGET_DATE" || "$FORCE" == "true" ]]; then
+    echo "--use cannot be combined with --date/--today/--force" >&2
+    exit 2
+  fi
+  echo "--use is not yet implemented" >&2
+  exit 1
+fi
 
 TARGET_DATE="${TARGET_DATE:-$(date -v+1d +%Y-%m-%d)}"
 OUTPUT_FILE="$RECIPES_DIR/$TARGET_DATE.md"
