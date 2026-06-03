@@ -185,6 +185,63 @@ The installed launchd plist includes `--notify discord` by default. To turn it o
 
 ---
 
+## Discord bot (optional)
+
+The nightly flow + `recipe --use` cover the local CLI. If you want to invoke the same capability from Discord on your phone, run the bot in `bot/`. It exposes three guild-scoped slash commands:
+
+- `/cook ingredients: chicken, spinach` — single ad-hoc recipe (Phase 1 `--use` flow).
+- `/today` — today's daily recipe. Fetches the cached file if present, otherwise generates it.
+- `/tomorrow` — same for tomorrow.
+
+Recipes arrive as messages in the channel where you ran the command.
+
+### Setup
+
+1. Create a Discord app at https://discord.com/developers/applications.
+   - **Bot** tab → **Reset Token** → copy.
+   - **General Information** tab → copy the **Application ID**.
+   - (Server) Discord with Developer Mode on → right-click your server icon → **Copy Server ID**.
+   - **OAuth2** → **URL Generator** → check `bot` and `applications.commands` → open the URL and invite the bot to your server.
+
+2. Drop the three IDs into `config.sh` (alongside `DISCORD_WEBHOOK_URL` if you use it):
+
+   ```sh
+   DISCORD_BOT_TOKEN="..."
+   DISCORD_APPLICATION_ID="..."
+   DISCORD_GUILD_ID="..."
+   ```
+
+3. Install dependencies and register the commands:
+
+   ```sh
+   cd bot
+   npm install
+   node register-commands.js
+   ```
+
+   `register-commands.js` is idempotent — re-run it whenever you change command definitions.
+
+4. Install the launchd supervisor (mirrors the daily-recipe job pattern):
+
+   ```sh
+   sed "s|__PROJECT_DIR__|$PWD/..|g" ../launchd/com.daily-recipe.bot.plist.template \
+     > ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
+   launchctl load ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
+   ```
+
+   The bot logs to `bot.out.log` and `bot.err.log` next to `generate-recipe.log`. `KeepAlive=true` restarts it automatically on crash.
+
+   If your `node` binary lives somewhere other than `/opt/homebrew/bin/node`, edit the template before the `sed` line above (or fix the generated plist).
+
+### Uninstall
+
+```sh
+launchctl unload ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
+rm ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
+```
+
+---
+
 ## Troubleshooting
 
 - **Notification dialog never appeared at 10pm.** Check Focus / Do Not Disturb wasn't active. The modal dialog is AppleScript-driven and will queue to the next unlocked session if needed.
