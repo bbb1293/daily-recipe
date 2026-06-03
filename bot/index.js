@@ -22,7 +22,10 @@ const DISCORD_MSG_LIMIT = 2000;
 function dateStr(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // local YYYY-MM-DD (matches `date +%Y-%m-%d`)
 }
 
 function runScript(args) {
@@ -50,13 +53,10 @@ async function postMarkdown(interaction, markdown) {
     return;
   }
   // Split on `\n## ` so each H2 becomes a chunk. Keep the `## ` prefix on chunks after the first.
-  const parts = [];
-  const split = markdown.split(/\n(?=## )/);
-  for (const part of split) parts.push(part);
-
+  const chunks = markdown.split(/\n(?=## )/);
   let first = true;
-  for (const part of parts) {
-    let text = part;
+  for (const chunk of chunks) {
+    let text = chunk;
     if (text.length > DISCORD_MSG_LIMIT) {
       text = text.slice(0, DISCORD_MSG_LIMIT - 1) + '…';
     }
@@ -130,8 +130,8 @@ client.once('ready', () => {
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  await interaction.deferReply();
   try {
+    await interaction.deferReply();
     switch (interaction.commandName) {
       case 'cook':
         await handleCook(interaction);
