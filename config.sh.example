@@ -4,3 +4,12 @@
 # Discord webhook URL for --notify discord.
 # Create one in Discord: Server Settings → Integrations → Webhooks → New Webhook.
 # DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/XXXX/YYYY"
+
+# Discord bot — needed only for bot/index.js.
+# Create the bot in https://discord.com/developers/applications, then:
+#   - Bot tab: Reset Token, paste below
+#   - General Information tab: copy the Application ID
+#   - In Discord (with Developer Mode on): right-click your server icon → Copy Server ID
+# DISCORD_BOT_TOKEN="..."
+# DISCORD_APPLICATION_ID="..."
+# DISCORD_GUILD_ID="..."
