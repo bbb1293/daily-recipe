@@ -377,6 +377,7 @@ if printf '%s' "$PROMPT" | perl -e 'alarm 600; exec @ARGV' claude -p --tools "" 
     notify_dialog "Recipes for $TARGET_DATE" "Three recipe options are ready. Open to pick one." "$open_path"
   fi
   [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "**Recipes for $TARGET_DATE**"
+  exit 0
 else
   log "claude CLI failed, see log above."
   rm -f "$OUTPUT_FILE"
