@@ -108,7 +108,7 @@ resolve_match() {
   MATCH_KEY="$query_key"
   MATCH_DISPLAY="$(disp "$query")"
   MATCHES=()
-  [[ -n "$query_key" && -f "$file" ]] || return
+  [[ -n "$query_key" && -f "$file" ]] || return 0
 
   while IFS= read -r line || [[ -n "$line" ]]; do
     is_skip "$line" && continue

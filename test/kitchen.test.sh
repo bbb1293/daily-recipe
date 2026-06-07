@@ -173,6 +173,26 @@ assert_eq "urgent missing exits 0" 0 "$REPLY_RC"
 k urgent
 assert_eq "urgent with no items exits 2" 2 "$REPLY_RC"
 
+echo "== missing data file =="
+# remove/urgent/unurgent against a list whose file doesn't exist yet must report
+# not-found and exit 0 (regression: resolve_match used to abort under set -e).
+new_data_dir   # empty dir: no ingredients.txt / pantry.txt
+k remove ingredients "foo"
+assert_eq "remove on missing file exits 0" 0 "$REPLY_RC"
+assert_contains "remove on missing file reports not found" "$REPLY_OUT" "Not found in ingredients: foo"
+
+k remove pantry "foo"
+assert_eq "remove on missing pantry exits 0" 0 "$REPLY_RC"
+assert_contains "remove on missing pantry reports not found" "$REPLY_OUT" "Not found in pantry: foo"
+
+k urgent "foo"
+assert_eq "urgent on missing file exits 0" 0 "$REPLY_RC"
+assert_contains "urgent on missing file reports not found" "$REPLY_OUT" "Not found in ingredients: foo"
+
+k unurgent "foo"
+assert_eq "unurgent on missing file exits 0" 0 "$REPLY_RC"
+assert_contains "unurgent on missing file reports not found" "$REPLY_OUT" "Not found in ingredients: foo"
+
 echo
 if (( FAILS > 0 )); then print -P "%F{red}$FAILS failure(s)%f"; exit 1
 else print -P "%F{green}all tests passed%f"; fi
