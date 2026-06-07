@@ -179,6 +179,16 @@ Edit `recipe.css`. The page uses system fonts and respects light/dark mode via `
 
 The prompt lives inside `generate-recipe.sh` (search for `You are a home cook`). It's split into Part A (three on-hand recipes) and Part B (one recommended stretch recipe). Adjust the numbered criteria, part structure, output format, or history-window size (currently the last 3 days) directly.
 
+### Generate recipes in another language
+
+Set `RECIPE_LANGUAGE` in `config.sh` to a free-form language string and the LLM will write the recipe body — labels, dish names, ingredients, steps — in that language. Static UI strings (the macOS dialog, Discord embed headers, bot replies) and the `(MISSING — need to buy)` tag stay in English so the HTML highlighter keeps working.
+
+```sh
+RECIPE_LANGUAGE="Korean"     # or "Japanese", "Italian", "日本語", etc.
+```
+
+Unset or empty means English (the default). No restart needed — `config.sh` is sourced on each script run.
+
 ### Disable Discord posting
 
 The installed launchd plist includes `--notify discord` by default. To turn it off, edit `~/Library/LaunchAgents/com.user.daily-recipe.plist`, remove the two `<string>--notify</string>` / `<string>discord</string>` lines from `ProgramArguments`, then `launchctl unload` + `launchctl load` the plist to apply.
