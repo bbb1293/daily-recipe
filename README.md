@@ -1,296 +1,187 @@
 # daily-recipe
 
-A local macOS tool that generates **three on-hand recipes plus one recommended stretch recipe every night for the next day's meal**, based on what's currently in your kitchen.
-
-It reads `ingredients.txt` (what you have) and `pantry.txt` (staples always available), calls the `claude` CLI to draft three recipes that use only those ingredients plus one "stretch" recipe that may add 1–2 items worth a quick shop, renders them to a styled HTML page, and pops a macOS dialog at 10:00 PM so you can pick one before bed.
+Generates **three on-hand recipes plus one stretch recipe** each night for the next day, based on what's in your kitchen. It reads `ingredients.txt` and `pantry.txt`, asks the `claude` CLI for recipes that use only those items (plus a stretch dish that may need 1–2 extras), renders styled HTML, and pops a macOS dialog at 10 PM.
 
 ---
 
 ## Features
 
-- **Three on-hand options + one stretch recipe per day.** Part A gives three zero-friction recipes using only what's already in your kitchen; Part B recommends one slightly more ambitious dish that may call for 1–2 extra items worth a quick shop.
-- **Uses what you actually have.** Reads a plain-text list of ingredients and pantry staples.
-- **Freshness-aware.** Suffix any item with `!urgent` in `ingredients.txt` and every on-hand recipe is required to use at least one urgent item — good for ingredients close to expiration.
-- **Shopping list is obvious.** In the stretch recipe, anything not already on hand is tagged `(MISSING — need to buy)` and highlighted in red in the rendered HTML. The three on-hand options never contain MISSING items.
-- **Detailed recipes.** Exact grams / tbsp / tsp quantities and exact times & temperatures — no vague "a bit of".
-- **Diverse rotation.** Feeds the last 3 days of recipes back into the prompt as "avoid repeating these" so you don't see kimchi stir-fry three days in a row.
-- **Simple & healthy bias.** Short cooking time, balanced macros, no deep-fry-heavy suggestions.
-- **Scheduled nightly.** A macOS `launchd` job runs the generator at 10:00 PM; a dialog pops with an **Open** button that launches the styled HTML in your default browser.
-- **Runnable from the command line too.** A `recipe` command with flags for ad-hoc generation.
-- **Optional Discord posting.** Pass `--notify discord` (wired into the launchd template by default) to post the day's recipes to a Discord webhook — handy for reading from your phone.
+- **3 on-hand + 1 stretch per day.** Part A: three recipes from what you have. Part B: one more ambitious dish that may need 1–2 extra items.
+- **Freshness-aware.** Suffix an item with `!urgent` and every on-hand recipe must use at least one urgent item.
+- **Clear shopping list.** Extras in the stretch recipe are tagged `(MISSING — need to buy)` and shown in red; on-hand recipes never contain them.
+- **Precise.** Exact quantities, times, and temperatures — no vague "a bit of".
+- **Varied.** The last 3 days of recipes are fed back as "avoid repeating".
+- **Scheduled.** A `launchd` job runs nightly and opens the HTML in your browser.
+- **CLI + Discord.** A `recipe` command for ad-hoc runs; optional webhook posting and a slash-command bot.
 
 ---
 
 ## Requirements
 
-- macOS (uses `launchd` and `osascript` for scheduling and dialogs).
-- [Claude Code CLI](https://claude.com/claude-code) (`claude` on PATH) — this powers recipe generation.
-- [pandoc](https://pandoc.org/) — converts markdown to styled HTML.
-- `zsh` (default on modern macOS).
-- `jq` — only if you use `--notify discord` (used to JSON-encode the webhook payload). macOS ships with a system `jq` at `/usr/bin/jq`; if yours is missing, install with Homebrew.
+macOS, plus:
 
-Install the dependencies:
+- [Claude Code CLI](https://claude.com/claude-code) (`claude` on PATH) — generates the recipes.
+- [pandoc](https://pandoc.org/) — markdown → styled HTML.
+- `zsh` (default on macOS).
+- `jq` — only for `--notify discord`.
 
 ```sh
 brew install pandoc
-brew install jq   # only needed for --notify discord
-# claude CLI: follow https://docs.claude.com/en/docs/claude-code
+brew install jq   # only for --notify discord
 ```
 
 ---
 
 ## Install
 
-You can clone this repo **anywhere** — the script locates its own directory at runtime, so `~/personal/food`, `~/projects/daily-recipe`, or any other path works.
+Clone anywhere — the script locates its own directory at runtime.
 
 ```sh
-# 1. Clone wherever you like, then cd into it
 git clone https://github.com/<your-username>/daily-recipe.git
 cd daily-recipe
 
-# 2. Seed your lists from the examples
+# Seed your lists from the examples
 cp ingredients.example.txt ingredients.txt
 cp pantry.example.txt pantry.txt
 
-# 3. Put the `recipe` command on your PATH
+# Put `recipe` on your PATH (add ~/.local/bin to PATH if it isn't already)
 mkdir -p ~/.local/bin
 ln -s "$PWD/generate-recipe.sh" ~/.local/bin/recipe
 
-# (If ~/.local/bin isn't on your PATH yet, add this to your shell rc:)
-# export PATH="$HOME/.local/bin:$PATH"
-
-# 4. (Optional) Enable Discord notifications
-#    Copy the template, then paste your webhook URL.
+# Optional: Discord notifications — copy the template, then set DISCORD_WEBHOOK_URL
 cp config.sh.example config.sh
-# Open config.sh and set DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
-# Skip this step if you don't use Discord — the launchd job will simply log a
-# "DISCORD_WEBHOOK_URL not set" line and carry on.
 
-# 5. Install the nightly launchd job
-#    This rewrites the template with your actual clone path, then loads it.
+# Install the nightly job (rewrites the template with your path, then loads it)
 mkdir -p ~/Library/LaunchAgents
 sed "s|__PROJECT_DIR__|$PWD|g" launchd/com.daily-recipe.plist.template \
   > ~/Library/LaunchAgents/com.user.daily-recipe.plist
 launchctl load ~/Library/LaunchAgents/com.user.daily-recipe.plist
 ```
 
-After step 5 the generator runs at **10:00 PM local time** each day, producing the next day's recipes.
+The generator now runs at **10 PM local time** for the next day's meal. If the Mac is asleep, it runs at the next wake.
 
 ---
 
 ## Usage
 
-### Nightly (automatic)
-
-At 10:00 PM `launchd` fires `generate-recipe.sh`, which:
-
-1. Reads `ingredients.txt` and `pantry.txt`.
-2. Prompts `claude` for three on-hand recipes plus one recommended stretch recipe for tomorrow.
-3. Writes `recipes/YYYY-MM-DD.md` and a styled `recipes/YYYY-MM-DD.html`.
-4. Pops a macOS dialog — click **Open** to view the rendered HTML in your browser, or **Later** to dismiss.
-
-If your Mac is asleep at 10pm, `launchd` fires the job the next time it wakes.
-
-### Command line
-
-The same script is exposed as `recipe`:
+Once installed, the nightly job writes `recipes/YYYY-MM-DD.{md,html}` and pops a dialog — click **Open** to view the HTML, **Later** to dismiss. You can also run it by hand via the `recipe` command:
 
 ```sh
-recipe                           # Generate tomorrow's recipes (skip if already generated)
-recipe --today                   # Generate for today
-recipe --date 2026-05-01         # Generate for a specific date
-recipe --force                   # Regenerate even if the target file exists
-recipe --print                   # Force print to stdout (useful inside pipelines)
-recipe --notify discord          # Also post the result to a Discord webhook
-recipe --use chicken             # Generate one recipe centered on a specific ingredient
-recipe --use chicken --use rice  # Repeatable; all named items must appear
+recipe                           # tomorrow's recipes (skip if already generated)
+recipe --today                   # today
+recipe --date 2026-05-01         # a specific date
+recipe --force                   # regenerate even if the file exists
+recipe --print                   # force print to stdout
+recipe --notify discord          # also post to a Discord webhook
+recipe --use chicken             # one recipe centered on an ingredient
+recipe --use chicken --use rice  # repeatable; all named items must appear
 recipe --help
 ```
 
-Behavior differs by how it's invoked:
+- **Interactive terminal:** markdown prints to stdout (HTML still written to `recipes/`).
+- **Headless** (launchd/cron/pipes): a dialog pops with **Later** / **Open**.
+- `--notify discord` posts on every run, even if the recipe already existed.
 
-- **Interactive terminal** (default): recipe markdown prints to stdout. The HTML is still written to `recipes/`.
-- **Headless** (launchd, cron, pipes): a modal dialog pops with **Later** / **Open** buttons.
-
-`--notify discord` posts every time the script runs, whether the recipe was freshly generated or already existed. If you re-run for the same date the channel will get another copy — useful for re-reading on your phone, noisy if you trigger the script repeatedly.
-
-### Cook with a specific ingredient
-
-If you want a recipe centered on something specific — say you just bought chicken and want ideas — use `--use`:
-
-```sh
-recipe --use chicken
-recipe --use chicken --use spinach --notify discord
-```
-
-This generates a single recipe that must include every named ingredient. Remaining ingredients are drawn from `ingredients.txt` and `pantry.txt`. Any named ingredient that isn't on either list is tagged `(MISSING — need to buy)` in the output. The recipe is printed to stdout (and posted to Discord with `--notify discord`); it is not saved to `recipes/` and does not render HTML. `--use` cannot be combined with `--date`, `--today`, or `--force`.
+`--use` builds a single recipe that includes every named ingredient, drawing the rest from your lists; named items not on either list are tagged `(MISSING — need to buy)`. It prints to stdout (and Discord), isn't saved to `recipes/`, and can't combine with `--date`/`--today`/`--force`.
 
 ---
 
 ## File layout
 
+Gitignored paths each ship a tracked `.example` (or `.template`) starter.
+
 ```
 .
-├── generate-recipe.sh          # main script (also linked as `recipe`)
-├── recipe.css                  # stylesheet used by the rendered HTML
-├── ingredients.txt             # your current ingredients (gitignored)
-├── ingredients.example.txt     # starter template (tracked)
-├── pantry.txt                  # always-on-hand staples (gitignored)
-├── pantry.example.txt          # starter template (tracked)
-├── config.sh                   # local secrets, e.g. DISCORD_WEBHOOK_URL (gitignored)
-├── config.sh.example           # starter template (tracked)
-├── recipes/                    # generated .md + .html output (gitignored)
-├── launchd/
-│   └── com.daily-recipe.plist.template  # install template for the nightly job
-├── generate-recipe.log         # per-run log (gitignored)
-└── launchd.{out,err}.log       # launchd stdout/stderr (gitignored)
+├── generate-recipe.sh   # nightly recipe generator (installed as `recipe`)
+├── kitchen.sh           # manage your ingredient/pantry lists from the CLI
+├── recipe.css           # stylesheet for the rendered HTML
+├── ingredients.txt      # current ingredients         (gitignored)
+├── pantry.txt           # always-on-hand staples       (gitignored)
+├── config.sh            # local secrets, e.g. DISCORD_WEBHOOK_URL (gitignored)
+├── recipes/             # generated .md + .html output (gitignored)
+├── bot/                 # Discord bot (index.js, register-commands.js)
+├── test/                # zsh tests (kitchen.test.sh)
+├── launchd/             # .plist templates for the nightly job + the bot
+└── *.log                # per-run and launchd logs     (gitignored)
 ```
 
 ---
 
-## Editing your lists
+## Your lists
 
-Both files are plain text, one item per line. Lines starting with `#` are ignored.
+Plain text, one item per line; `#` lines are ignored.
 
-`ingredients.txt` — things sitting in your fridge/freezer/counter right now. This is what you're trying to "use up". Add tags like `(frozen)` if you want the recipe to know. Suffix any line with `!urgent` (e.g. `spinach !urgent`) for items close to expiration — every one of the three on-hand recipes will be required to use at least one urgent item.
+- **`ingredients.txt`** — what you have right now. Tag an item `!urgent` (e.g. `spinach !urgent`) for things near expiry; every on-hand recipe must then use at least one. Free-form notes like `(frozen)` are fine.
+- **`pantry.txt`** — staples you always have; never tagged missing.
 
-`pantry.txt` — staples you *always* have. Items here are assumed available and **never** tagged as missing. Adjust to match your kitchen.
+Only the stretch recipe reaches beyond your lists, adding up to two `(MISSING — need to buy)` items — your optional shopping list.
 
-The three on-hand options never reach beyond your lists. The recommended stretch recipe may add up to two items, each tagged `(MISSING — need to buy)` — that's your (optional) shopping list for the day.
-
-## Managing your lists
-
-Edit the ingredient and pantry lists without opening the files, from the CLI or Discord.
-
-### CLI (`kitchen.sh`)
+Edit the files by hand, or use `kitchen.sh` (or the Discord `/kitchen` command):
 
 ```sh
-./kitchen.sh list                       # show both lists
-./kitchen.sh list ingredients           # show one list (urgent items flagged)
-./kitchen.sh add ingredients "chicken thighs" "spinach" --urgent
+./kitchen.sh list [ingredients|pantry]            # show lists (urgent flagged)
+./kitchen.sh add ingredients "chicken thighs" --urgent
 ./kitchen.sh add pantry "fish sauce"
 ./kitchen.sh remove ingredients "spinach"
-./kitchen.sh urgent "spinach"           # mark close-to-expiring
-./kitchen.sh unurgent "spinach"
+./kitchen.sh urgent "spinach"                      # or: unurgent
 ```
 
-Items are matched case-insensitively. `remove`, `urgent`, and `unurgent` try an
-exact match first, then a unique substring match. If a substring matches
-multiple items, nothing changes and the matching candidates are shown. The
-`--urgent` flag applies only to the ingredients list.
+Items match case-insensitively. `remove`/`urgent`/`unurgent` try an exact match, then a unique substring; an ambiguous substring changes nothing and lists the candidates. `--urgent` applies only to ingredients.
 
-### Discord (`/kitchen`)
-
-- `/kitchen list [which]` — show ingredients and/or pantry
-- `/kitchen add list:<ingredients|pantry> items:"a, b" [urgent:true]`
-- `/kitchen remove list:<ingredients|pantry> items:"a, b"`
-- `/kitchen urgent items:"a, b"` / `/kitchen unurgent items:"a, b"`
-
-The `items` field is comma-separated. After changing the command definitions,
-re-run `node bot/register-commands.js`.
+Discord mirrors these as `/kitchen list|add|remove|urgent|unurgent` (the `items` field is comma-separated). Re-run `node bot/register-commands.js` after changing command definitions.
 
 ---
 
 ## Customizing
 
-### Change the schedule
-
-Edit `~/Library/LaunchAgents/com.user.daily-recipe.plist`, adjust the `<key>Hour</key>` / `<key>Minute</key>` values, then reload:
-
-```sh
-launchctl unload ~/Library/LaunchAgents/com.user.daily-recipe.plist
-launchctl load   ~/Library/LaunchAgents/com.user.daily-recipe.plist
-```
-
-### Change the look of the rendered HTML
-
-Edit `recipe.css`. The page uses system fonts and respects light/dark mode via `prefers-color-scheme`. The `(MISSING — need to buy)` tag is styled via the `.missing` class — tweak color or remove the pill styling there.
-
-### Change what the LLM is asked for
-
-The prompt lives inside `generate-recipe.sh` (search for `You are a home cook`). It's split into Part A (three on-hand recipes) and Part B (one recommended stretch recipe). Adjust the numbered criteria, part structure, output format, or history-window size (currently the last 3 days) directly.
-
-### Generate recipes in another language
-
-Set `RECIPE_LANGUAGE` in `config.sh` to a free-form language string and the LLM will write the recipe body — labels, dish names, ingredients, steps — in that language. Static UI strings (the macOS dialog, Discord embed headers, bot replies) and the `(MISSING — need to buy)` tag stay in English so the HTML highlighter keeps working.
-
-```sh
-RECIPE_LANGUAGE="Korean"     # or "Japanese", "Italian", "日本語", etc.
-```
-
-Unset or empty means English (the default). No restart needed — `config.sh` is sourced on each script run.
-
-### Disable Discord posting
-
-The installed launchd plist includes `--notify discord` by default. To turn it off, edit `~/Library/LaunchAgents/com.user.daily-recipe.plist`, remove the two `<string>--notify</string>` / `<string>discord</string>` lines from `ProgramArguments`, then `launchctl unload` + `launchctl load` the plist to apply.
+- **Schedule** — edit `Hour`/`Minute` in `~/Library/LaunchAgents/com.user.daily-recipe.plist`, then `launchctl unload && launchctl load` it.
+- **HTML look** — edit `recipe.css` (system fonts; light/dark via `prefers-color-scheme`; the `.missing` class styles the buy tag).
+- **The prompt** — in `generate-recipe.sh` (search `You are a home cook`): Part A (on-hand) / Part B (stretch), criteria, output format, history window (3 days).
+- **Language** — set `RECIPE_LANGUAGE` in `config.sh` (e.g. `"Korean"`, `"日本語"`). The recipe body is translated; UI strings and the `(MISSING — need to buy)` tag stay English so the HTML highlighter keeps working. Empty = English. Sourced each run, no restart.
+- **Disable Discord posting** — remove the `--notify` / `discord` lines from `ProgramArguments` in the plist, then reload it.
 
 ---
 
 ## Discord bot (optional)
 
-The nightly flow + `recipe --use` cover the local CLI. If you want to invoke the same capability from Discord on your phone, run the bot in `bot/`. It exposes three guild-scoped slash commands:
+Run the bot in `bot/` to drive the tool from Discord. Guild-scoped slash commands:
 
-- `/cook ingredients: chicken, spinach` — single ad-hoc recipe (Phase 1 `--use` flow).
-- `/today` — today's daily recipe. Fetches the cached file if present, otherwise generates it.
-- `/tomorrow` — same for tomorrow.
-- `/kitchen ...` — manage ingredients and pantry lists. See [Managing your lists](#managing-your-lists).
-
-Recipes arrive as messages in the channel where you ran the command.
+- `/cook ingredients: chicken, spinach` — one ad-hoc recipe (the `--use` flow).
+- `/today`, `/tomorrow` — the daily recipe (cached if present, else generated).
+- `/kitchen ...` — manage your lists (see [Your lists](#your-lists)).
 
 ### Setup
 
-1. Create a Discord app at https://discord.com/developers/applications.
-   - **Bot** tab → **Reset Token** → copy.
-   - **General Information** tab → copy the **Application ID**.
-   - (Server) Discord with Developer Mode on → right-click your server icon → **Copy Server ID**.
-   - **OAuth2** → **URL Generator** → check `bot` and `applications.commands` → open the URL and invite the bot to your server.
-
-2. Drop the three IDs into `config.sh` (alongside `DISCORD_WEBHOOK_URL` if you use it):
-
+1. Create an app at https://discord.com/developers/applications. Copy the **bot token** (Bot → Reset Token) and the **Application ID**; with Developer Mode on, copy your **Server ID**; in OAuth2 → URL Generator, check `bot` + `applications.commands`, then open the URL to invite the bot.
+2. Add the IDs to `config.sh`:
    ```sh
    DISCORD_BOT_TOKEN="..."
    DISCORD_APPLICATION_ID="..."
    DISCORD_GUILD_ID="..."
    ```
-
-3. Install dependencies and register the commands:
-
+3. Install deps and register commands (idempotent — re-run when commands change):
    ```sh
-   cd bot
-   npm install
-   node register-commands.js
+   cd bot && npm install && node register-commands.js
    ```
-
-   `register-commands.js` is idempotent — re-run it whenever you change command definitions.
-
-4. Install the launchd supervisor (mirrors the daily-recipe job pattern):
-
+4. Install the supervisor job:
    ```sh
    sed "s|__PROJECT_DIR__|$PWD/..|g" ../launchd/com.daily-recipe.bot.plist.template \
      > ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
    launchctl load ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
    ```
+   Logs go to `bot.out.log` / `bot.err.log`; `KeepAlive=true` restarts on crash. If `node` isn't at `/opt/homebrew/bin/node`, edit the template first.
 
-   The bot logs to `bot.out.log` and `bot.err.log` next to `generate-recipe.log`. `KeepAlive=true` restarts it automatically on crash.
-
-   If your `node` binary lives somewhere other than `/opt/homebrew/bin/node`, edit the template before the `sed` line above (or fix the generated plist).
-
-### Uninstall
-
-```sh
-launchctl unload ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
-rm ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
-```
+Uninstall the bot: `launchctl unload` then `rm` `~/Library/LaunchAgents/com.user.daily-recipe.bot.plist`.
 
 ---
 
 ## Troubleshooting
 
-- **Notification dialog never appeared at 10pm.** Check Focus / Do Not Disturb wasn't active. The modal dialog is AppleScript-driven and will queue to the next unlocked session if needed.
-- **The "Open" button didn't launch the file.** Make sure `pandoc` is installed so an `.html` gets generated (the default app resolution for `.md` alone often fails).
-- **"ingredients.txt is empty, skipping"** in the log. The file is either empty or contains only comments.
-- **Script runs, but `claude` fails.** Check `generate-recipe.log` — most often this is an expired Claude Code auth session. Run `claude` interactively once to refresh.
-- **Discord posts never arrive.** Look for `DISCORD_WEBHOOK_URL not set` in `generate-recipe.log` (fill in `config.sh`), or a curl error (bad/expired webhook URL).
+- **No dialog at 10 PM** — check Focus / Do Not Disturb; the dialog queues to the next unlocked session.
+- **"Open" did nothing** — install `pandoc` so an `.html` is generated (opening `.md` alone often fails).
+- **"ingredients.txt is empty, skipping"** — the file is empty or all comments.
+- **`claude` fails** — usually an expired auth session; run `claude` once interactively. See `generate-recipe.log`.
+- **No Discord posts** — look for `DISCORD_WEBHOOK_URL not set` in the log, or a bad/expired webhook URL.
 
 ---
 
@@ -300,5 +191,5 @@ rm ~/Library/LaunchAgents/com.user.daily-recipe.bot.plist
 launchctl unload ~/Library/LaunchAgents/com.user.daily-recipe.plist
 rm ~/Library/LaunchAgents/com.user.daily-recipe.plist
 rm ~/.local/bin/recipe
-# Then delete the clone directory wherever you put it
+# then delete the clone directory
 ```
