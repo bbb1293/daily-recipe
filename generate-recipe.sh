@@ -119,8 +119,8 @@ notify_discord() {
   for chunk in "${chunks[@]}"; do
     idx=$((idx + 1))
     title=$(grep -m1 '^## ' "$chunk" | sed 's/^## //')
-    # Drop the H2 title line and any "# Recipes for ..." or "# Recipe with ..." header from body.
-    body=$(sed '/^## /d; /^# Recipe/d' "$chunk")
+    # Drop the H2 title line and any top-level H1 header line (language-neutral; the H1 may be translated).
+    body=$(sed '/^## /d; /^# /d' "$chunk")
     # Green for on-hand options, orange for the final chunk only when there are multiple chunks.
     if (( idx == last_idx && last_idx > 1 )); then color=15105570; else color=3066993; fi
     # Discord embed description cap is 4096; truncate defensively.
