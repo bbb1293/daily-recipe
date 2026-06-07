@@ -111,7 +111,10 @@ async function handleDaily(interaction, offsetDays) {
   } catch {
     // File missing — generate, then read again.
     try {
-      const args = offsetDays === 0 ? ['--today'] : [];
+      // --print forces INTERACTIVE=true in the script, which skips the
+      // AppleScript notify_dialog that would otherwise block the spawn
+      // until the user clicks Later/Open on the host's desktop.
+      const args = offsetDays === 0 ? ['--today', '--print'] : ['--print'];
       await runScript(args);
       markdown = await fs.readFile(file, 'utf8');
     } catch (err) {
