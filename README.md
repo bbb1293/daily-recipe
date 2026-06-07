@@ -158,6 +158,35 @@ Both files are plain text, one item per line. Lines starting with `#` are ignore
 
 The three on-hand options never reach beyond your lists. The recommended stretch recipe may add up to two items, each tagged `(MISSING — need to buy)` — that's your (optional) shopping list for the day.
 
+## Managing your lists
+
+Edit the ingredient and pantry lists without opening the files, from the CLI or Discord.
+
+### CLI (`kitchen.sh`)
+
+```sh
+./kitchen.sh list                       # show both lists
+./kitchen.sh list ingredients           # show one list (urgent items flagged)
+./kitchen.sh add ingredients "chicken thighs" "spinach" --urgent
+./kitchen.sh add pantry "fish sauce"
+./kitchen.sh remove ingredients "spinach"
+./kitchen.sh urgent "spinach"           # mark close-to-expiring
+./kitchen.sh unurgent "spinach"
+```
+
+Items are matched case-insensitively and exactly; quote multi-word items. The
+`--urgent` flag applies only to the ingredients list.
+
+### Discord (`/kitchen`)
+
+- `/kitchen list [which]` — show ingredients and/or pantry
+- `/kitchen add list:<ingredients|pantry> items:"a, b" [urgent:true]`
+- `/kitchen remove list:<ingredients|pantry> items:"a, b"`
+- `/kitchen urgent items:"a, b"` / `/kitchen unurgent items:"a, b"`
+
+The `items` field is comma-separated. After changing the command definitions,
+re-run `node bot/register-commands.js`.
+
 ---
 
 ## Customizing
@@ -202,6 +231,7 @@ The nightly flow + `recipe --use` cover the local CLI. If you want to invoke the
 - `/cook ingredients: chicken, spinach` — single ad-hoc recipe (Phase 1 `--use` flow).
 - `/today` — today's daily recipe. Fetches the cached file if present, otherwise generates it.
 - `/tomorrow` — same for tomorrow.
+- `/kitchen ...` — manage ingredients and pantry lists. See [Managing your lists](#managing-your-lists).
 
 Recipes arrive as messages in the channel where you ran the command.
 
