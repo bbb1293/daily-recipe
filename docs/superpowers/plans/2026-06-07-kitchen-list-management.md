@@ -20,7 +20,7 @@
 
 **Conventions baked into the script:**
 - One item = one argument. Multi-word items are quoted. The bot splits its comma-separated `items` string into separate args before calling.
-- Matching is case-insensitive and exact on the item name (trailing ` !urgent` suffix and surrounding whitespace stripped before comparing). Comment (`#`) and blank lines are never matched.
+- Matching is case-insensitive. `add` uses exact matching for duplicate detection. `remove`, `urgent`, and `unurgent` try exact matching first, then a unique substring match; ambiguous substring matches are reported without changing files. Comment (`#`) and blank lines are never matched.
 - Exit `0` when an operation ran (per-item results — added / already present / removed / not found / marked / cleared — are reported in stdout text). Exit `2` for usage errors (unknown subcommand, missing args, bad list name, `--urgent` with `pantry`).
 - Mutations rewrite via a temp file + `mv`, preserving comments, blanks, and order.
 
@@ -118,8 +118,9 @@ Commands:
   unurgent <item>...                     Clear urgent from ingredients
   -h, --help                             Show this help
 
-Items are matched case-insensitively and exactly. Multi-word items must be
-quoted, e.g. kitchen add ingredients "chicken thighs".
+Items are matched case-insensitively. Mutating commands try exact matches first,
+then a unique substring match. Multi-word items must be quoted, e.g.
+kitchen add ingredients "chicken thighs".
 EOF
 }
 
@@ -887,7 +888,7 @@ git commit -m "Handle /kitchen in the Discord bot"
 In `CLAUDE.md`, under `## Layout`, add two bullets after the `generate-recipe.sh` bullet:
 
 ```markdown
-- `kitchen.sh` — manage the data files from the CLI: `kitchen list`, `kitchen add <list> <item>... [--urgent]`, `kitchen remove <list> <item>...`, `kitchen urgent <item>...`, `kitchen unurgent <item>...`. Matches items case-insensitively and exactly; honors `KITCHEN_DATA_DIR` for testing. Shared by the Discord `/kitchen` command.
+- `kitchen.sh` — manage the data files from the CLI: `kitchen list`, `kitchen add <list> <item>... [--urgent]`, `kitchen remove <list> <item>...`, `kitchen urgent <item>...`, `kitchen unurgent <item>...`. Matches items case-insensitively; mutations try exact first, then unique substring, and report multiple substring matches without changing files. Honors `KITCHEN_DATA_DIR` for testing. Shared by the Discord `/kitchen` command.
 - `test/kitchen.test.sh` — dependency-free zsh tests for `kitchen.sh`. Run with `zsh test/kitchen.test.sh`.
 ```
 
@@ -912,7 +913,9 @@ Edit the ingredient and pantry lists without opening the files, from the CLI or 
 ./kitchen.sh unurgent "spinach"
 ```
 
-Items are matched case-insensitively and exactly; quote multi-word items. The
+Items are matched case-insensitively. `remove`, `urgent`, and `unurgent` try an
+exact match first, then a unique substring match. If a substring matches
+multiple items, nothing changes and the matching candidates are shown. The
 `--urgent` flag applies only to the ingredients list.
 
 ### Discord (`/kitchen`)
@@ -947,7 +950,7 @@ git commit -m "Document kitchen list management (CLI and Discord)"
 - List current ingredients/pantry via CLI → Task 2. Via Discord → Tasks 6, 7.
 - Mark/unmark urgent via CLI → Task 5. Via Discord → Tasks 6, 7.
 - Single source of truth (no JS logic duplication) → bot shells out to `kitchen.sh` (Task 7).
-- Case-insensitive exact matching → `norm_key` (Task 1), exercised in Tasks 3-5.
+- Case-insensitive exact matching with unique substring fallback for mutations → `norm_key` and resolver helpers, exercised in Tasks 3-5.
 - Atomic edits, comments/order preserved → `rewrite_without` / `apply_urgent` (Tasks 4-5) and tests asserting comment survival.
 - Exit-code contract (0 ran / 2 usage) → dispatch + `die_usage` (Task 1), asserted in Tasks 1-5.
 - Tests → Tasks 1-5. Docs → Task 8.

@@ -3,7 +3,7 @@
 ## Layout
 
 - `generate-recipe.sh` — main script. Builds a prompt from the data files and recent history, calls the `claude` CLI, writes markdown + HTML output, and dispatches notifications (dialog, Discord).
-- `kitchen.sh` — manage the data files from the CLI: `kitchen list`, `kitchen add <list> <item>... [--urgent]`, `kitchen remove <list> <item>...`, `kitchen urgent <item>...`, `kitchen unurgent <item>...`. Matches items case-insensitively and exactly; honors `KITCHEN_DATA_DIR` for testing. Shared by the Discord `/kitchen` command.
+- `kitchen.sh` — manage the data files from the CLI: `kitchen list`, `kitchen add <list> <item>... [--urgent]`, `kitchen remove <list> <item>...`, `kitchen urgent <item>...`, `kitchen unurgent <item>...`. Matches items case-insensitively; mutations try exact first, then unique substring, and report multiple substring matches without changing files. Honors `KITCHEN_DATA_DIR` for testing. Shared by the Discord `/kitchen` command.
 - `test/kitchen.test.sh` — dependency-free zsh tests for `kitchen.sh`. Run with `zsh test/kitchen.test.sh`.
 - `ingredients.txt` — current on-hand ingredients, one per line. `#` comments and blank lines are ignored. A trailing `!urgent` marks items close to expiring; they're surfaced separately in the prompt and every cook-now recipe must use at least one.
 - `pantry.txt` — always-available staples. Same comment/blank rules. Items here are never tagged as MISSING.

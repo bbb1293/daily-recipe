@@ -174,7 +174,9 @@ Edit the ingredient and pantry lists without opening the files, from the CLI or 
 ./kitchen.sh unurgent "spinach"
 ```
 
-Items are matched case-insensitively and exactly; quote multi-word items. The
+Items are matched case-insensitively. `remove`, `urgent`, and `unurgent` try an
+exact match first, then a unique substring match. If a substring matches
+multiple items, nothing changes and the matching candidates are shown. The
 `--urgent` flag applies only to the ingredients list.
 
 ### Discord (`/kitchen`)

@@ -21,8 +21,9 @@ Commands:
   unurgent <item>...                     Clear urgent from ingredients
   -h, --help                             Show this help
 
-Items are matched case-insensitively and exactly. Multi-word items must be
-quoted, e.g. kitchen add ingredients "chicken thighs".
+Items are matched case-insensitively. Mutating commands try exact matches first,
+then a unique substring match. Multi-word items must be quoted, e.g.
+kitchen add ingredients "chicken thighs".
 EOF
 }
 
@@ -101,6 +102,50 @@ list_contains() {
   return 1
 }
 
+resolve_match() {
+  local file="$1" query="$2" query_key="$3" line key
+  MATCH_STATUS=none
+  MATCH_KEY="$query_key"
+  MATCH_DISPLAY="$(disp "$query")"
+  MATCHES=()
+  [[ -n "$query_key" && -f "$file" ]] || return
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    is_skip "$line" && continue
+    key=$(norm_key "$line")
+    if [[ "$key" == "$query_key" ]]; then
+      MATCH_STATUS=one
+      MATCH_KEY="$query_key"
+      MATCH_DISPLAY="$(disp "$query")"
+      return
+    fi
+  done < "$file"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    is_skip "$line" && continue
+    key=$(norm_key "$line")
+    if [[ "$key" == *"$query_key"* ]]; then
+      MATCHES+=("$(disp "$line")")
+      MATCH_KEY="$key"
+      MATCH_DISPLAY="$(disp "$line")"
+    fi
+  done < "$file"
+
+  if (( ${#MATCHES[@]} == 1 )); then
+    MATCH_STATUS=one
+  elif (( ${#MATCHES[@]} > 1 )); then
+    MATCH_STATUS=multiple
+  fi
+}
+
+print_multiple_matches() {
+  local list="$1" query="$2" match
+  echo "Multiple matches in $list for: $(disp "$query")"
+  for match in "${MATCHES[@]}"; do
+    echo "- $match"
+  done
+}
+
 cmd_add() {
   local list="${1:-}"
   [[ -n "$list" ]] || die_usage "add: missing list (ingredients or pantry)"
@@ -150,13 +195,17 @@ cmd_remove() {
   local list="${1:-}"
   [[ -n "$list" ]] || die_usage "remove: missing list (ingredients or pantry)"
   shift
-  local file
+  local file resolved
   file=$(file_for_list "$list") || die_usage "remove: unknown list '$list' (use ingredients or pantry)"
+  resolved=$(resolved_file "$file")
   (( $# > 0 )) || die_usage "remove: provide at least one item"
   local item
   for item in "$@"; do
-    if rewrite_without "$file" "$(norm_key "$item")"; then
-      echo "Removed from $list: $(disp "$item")"
+    resolve_match "$resolved" "$item" "$(norm_key "$item")"
+    if [[ "$MATCH_STATUS" == "multiple" ]]; then
+      print_multiple_matches "$list" "$item"
+    elif [[ "$MATCH_STATUS" == "one" ]] && rewrite_without "$resolved" "$MATCH_KEY"; then
+      echo "Removed from $list: $MATCH_DISPLAY"
     else
       echo "Not found in $list: $(disp "$item")"
     fi
@@ -192,10 +241,14 @@ set_urgent() {
   if [[ "$mode" == "add" ]]; then label="Marked urgent"; word="urgent"
   else label="Cleared urgent"; word="unurgent"; fi
   (( $# > 0 )) || die_usage "$word: provide at least one item"
-  local item
+  local file item
+  file=$(resolved_file "$INGREDIENTS_FILE")
   for item in "$@"; do
-    if [[ "$(apply_urgent "$INGREDIENTS_FILE" "$(norm_key "$item")" "$mode")" == "found" ]]; then
-      echo "$label: $(disp "$item")"
+    resolve_match "$file" "$item" "$(norm_key "$item")"
+    if [[ "$MATCH_STATUS" == "multiple" ]]; then
+      print_multiple_matches ingredients "$item"
+    elif [[ "$MATCH_STATUS" == "one" ]] && [[ "$(apply_urgent "$file" "$MATCH_KEY" "$mode")" == "found" ]]; then
+      echo "$label: $MATCH_DISPLAY"
     else
       echo "Not found in ingredients: $(disp "$item")"
     fi

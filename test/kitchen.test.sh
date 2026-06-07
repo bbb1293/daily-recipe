@@ -101,11 +101,26 @@ assert_not_contains "removed item gone" "$REPLY_OUT" "spinach"
 assert_contains "other items remain" "$REPLY_OUT" "eggs"
 assert_contains "comment preserved after remove" "$(cat "$KITCHEN_DATA_DIR/ingredients.txt")" "# header"
 
-k remove ingredients "tom"
+k remove ingredients "pear"
 assert_eq "remove missing exits 0" 0 "$REPLY_RC"
-assert_contains "exact match: substring not removed" "$REPLY_OUT" "Not found in ingredients: tom"
+assert_contains "missing item reported" "$REPLY_OUT" "Not found in ingredients: pear"
 k list ingredients
-assert_contains "substring target untouched" "$REPLY_OUT" "cherry tomatoes"
+assert_contains "missing item leaves other items untouched" "$REPLY_OUT" "cherry tomatoes"
+
+new_data_dir
+printf 'smoked duck 180g x 6\ncanned tuna 150g x 1\ncanned hot pepper tuna 100g x 2\n' > "$KITCHEN_DATA_DIR/ingredients.txt"
+k remove ingredients "smoked duck"
+assert_contains "unique substring removes full matched item" "$REPLY_OUT" "Removed from ingredients: smoked duck 180g x 6"
+k list ingredients
+assert_not_contains "unique substring target gone" "$REPLY_OUT" "smoked duck"
+
+k remove ingredients "canned"
+assert_contains "ambiguous substring reports query" "$REPLY_OUT" "Multiple matches in ingredients for: canned"
+assert_contains "ambiguous substring lists first match" "$REPLY_OUT" "- canned tuna 150g x 1"
+assert_contains "ambiguous substring lists second match" "$REPLY_OUT" "- canned hot pepper tuna 100g x 2"
+k list ingredients
+assert_contains "ambiguous substring leaves first match" "$REPLY_OUT" "canned tuna 150g x 1"
+assert_contains "ambiguous substring leaves second match" "$REPLY_OUT" "canned hot pepper tuna 100g x 2"
 
 k remove bogus "x"
 assert_eq "remove bad list exits 2" 2 "$REPLY_RC"
@@ -130,10 +145,30 @@ assert_contains "unurgent clears (case-insensitive)" "$REPLY_OUT" "Cleared urgen
 k list ingredients
 assert_not_contains "urgent flag gone" "$REPLY_OUT" "⚠ urgent"
 
+assert_contains "comment preserved after urgent ops" "$(cat "$KITCHEN_DATA_DIR/ingredients.txt")" "# h"
+
+new_data_dir
+printf 'smoked duck 180g x 6\ncanned tuna 150g x 1\ncanned hot pepper tuna 100g x 2\n' > "$KITCHEN_DATA_DIR/ingredients.txt"
+k urgent "duck"
+assert_contains "urgent unique substring reports matched item" "$REPLY_OUT" "Marked urgent: smoked duck 180g x 6"
+k list ingredients
+assert_contains "urgent unique substring applied" "$REPLY_OUT" "smoked duck 180g x 6 ⚠ urgent"
+
+k urgent "canned"
+assert_contains "urgent ambiguous substring reports query" "$REPLY_OUT" "Multiple matches in ingredients for: canned"
+assert_contains "urgent ambiguous lists first match" "$REPLY_OUT" "- canned tuna 150g x 1"
+assert_contains "urgent ambiguous lists second match" "$REPLY_OUT" "- canned hot pepper tuna 100g x 2"
+k list ingredients
+assert_not_contains "urgent ambiguous leaves matches unchanged" "$REPLY_OUT" "canned tuna 150g x 1 ⚠ urgent"
+
+k unurgent "duck"
+assert_contains "unurgent unique substring reports matched item" "$REPLY_OUT" "Cleared urgent: smoked duck 180g x 6"
+k list ingredients
+assert_not_contains "unurgent unique substring applied" "$REPLY_OUT" "smoked duck 180g x 6 ⚠ urgent"
+
 k urgent "kale"
 assert_contains "urgent missing item reported" "$REPLY_OUT" "Not found in ingredients: kale"
 assert_eq "urgent missing exits 0" 0 "$REPLY_RC"
-assert_contains "comment preserved after urgent ops" "$(cat "$KITCHEN_DATA_DIR/ingredients.txt")" "# h"
 
 k urgent
 assert_eq "urgent with no items exits 2" 2 "$REPLY_RC"

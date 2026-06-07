@@ -73,10 +73,13 @@ kitchen unurgent <item>...                      # ingredients only
   comment header intact. Report `Added to <list>: <item>`.
 
 **remove `<list> <item>...`**
-- For each item, remove every line whose item name (suffix and whitespace
-  stripped) matches case-insensitively and exactly. Comment and blank lines are
-  never matched. Report `Removed from <list>: <item>` or
-  `Not found in <list>: <item>`.
+- For each item, resolve a match against non-comment, non-blank lines. Exact
+  case-insensitive match wins first. If no exact match exists, a
+  case-insensitive substring match may be used only when it resolves to exactly
+  one line. Remove the matched line and report the actual stored item, e.g.
+  `Removed from ingredients: smoked duck 180g x 6`. If a substring matches
+  multiple lines, do not mutate and report the candidates. If nothing matches,
+  report `Not found in <list>: <item>`.
 
 **urgent `<item>...` / unurgent `<item>...`**
 - Operate only on `ingredients.txt`.
@@ -94,10 +97,16 @@ kitchen unurgent <item>...                      # ingredients only
 
 ### Matching rule
 
-Case-insensitive **exact** match on the item name. The item name of a line is
-the line with any trailing ` !urgent` suffix and surrounding whitespace removed.
-Comparison lowercases both sides. There is deliberately no substring matching,
-to keep behavior predictable.
+The item name of a line is the line with any trailing ` !urgent` suffix and
+surrounding whitespace removed. Comments and blanks are ignored.
+
+`add` uses case-insensitive exact matching only for duplicate detection.
+
+`remove`, `urgent`, and `unurgent` use case-insensitive exact matching first. If
+there is no exact match, they fall back to case-insensitive substring matching.
+A unique substring match mutates that stored item and reports the actual stored
+item in stdout. Multiple substring matches are treated as ambiguous: the command
+exits 0, changes nothing for that query, and prints the matched candidates.
 
 ### Edits are atomic
 
@@ -152,8 +161,8 @@ at a temporary working directory and asserts behavior:
 - add with `--urgent`; `--urgent` with `pantry` is a usage error (exit 2)
 - remove an existing item; remove a missing item reports not-found, exit 0
 - `urgent` then `urgent` again (idempotent); `unurgent` clears it
-- exact-match miss does not touch near-matches (e.g. `tom` does not match
-  `cherry tomatoes`)
+- unique substring match mutates the stored item and reports its full name
+- ambiguous substring match lists candidates and leaves files unchanged
 - `list` omits comments/blanks and flags urgent items
 - comment lines and untouched lines survive every mutation
 - unknown subcommand / missing args exit 2
