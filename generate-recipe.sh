@@ -16,6 +16,16 @@ if [[ -f "$FOOD_DIR/config.sh" ]]; then
   source "$FOOD_DIR/config.sh"
 fi
 
+# Optional output-language directive. RECIPE_LANGUAGE is a free-form string
+# (e.g. "Korean", "Japanese", "Italian") sourced from config.sh; unset means
+# English. The directive is appended to both prompts further down.
+LANGUAGE_DIRECTIVE=""
+if [[ -n "${RECIPE_LANGUAGE:-}" ]]; then
+  LANGUAGE_DIRECTIVE="
+
+LANGUAGE: Write the entire output in $RECIPE_LANGUAGE. Translate all bold labels (e.g. **Prep time**, **Cook time**, **Serves**, **Ingredients**, **Steps**, **Why it's healthy**), dish names, descriptions, and step text. EXCEPTION: keep the literal token **(MISSING — need to buy)** in English, exactly as written — downstream tooling depends on it."
+fi
+
 usage() {
   cat <<EOF
 Usage: recipe [OPTIONS]
@@ -216,6 +226,7 @@ One-line description.
 **Why it's healthy**: one short line.
 
 Output only the markdown, no preamble."
+USE_PROMPT="$USE_PROMPT$LANGUAGE_DIRECTIVE"
 
   log "Generating --use recipe for: $NAMED_JOINED"
 
@@ -361,6 +372,7 @@ One-line description explaining why this is worth a small shop.
 **Why it's healthy**: one short line.
 
 Output only the markdown, no preamble."
+PROMPT="$PROMPT$LANGUAGE_DIRECTIVE"
 
 log "Generating recipes for $TARGET_DATE..."
 
