@@ -17,6 +17,7 @@ for (const key of REQUIRED) {
 const PROJECT_DIR = path.resolve(__dirname, '..');
 const RECIPES_DIR = path.join(PROJECT_DIR, 'recipes');
 const SCRIPT = path.join(PROJECT_DIR, 'generate-recipe.sh');
+const KITCHEN_SCRIPT = path.join(PROJECT_DIR, 'kitchen.sh');
 const DISCORD_MSG_LIMIT = 2000;
 
 function dateStr(offsetDays = 0) {
@@ -28,11 +29,11 @@ function dateStr(offsetDays = 0) {
   return `${year}-${month}-${day}`; // local YYYY-MM-DD (matches `date +%Y-%m-%d`)
 }
 
-function runScript(args) {
+function runScript(args, script = SCRIPT) {
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
-    const child = spawn(SCRIPT, args, { cwd: PROJECT_DIR });
+    const child = spawn(script, args, { cwd: PROJECT_DIR });
     child.stdout.on('data', (chunk) => {
       stdout += chunk.toString();
     });
@@ -41,7 +42,7 @@ function runScript(args) {
     });
     child.on('close', (code) => {
       if (code === 0) resolve(stdout);
-      else reject(new Error(`generate-recipe.sh exited ${code}\nstderr: ${stderr.slice(-2000)}`));
+      else reject(new Error(`${path.basename(script)} exited ${code}\nstderr: ${stderr.slice(-2000)}`));
     });
     child.on('error', reject);
   });
@@ -80,12 +81,15 @@ async function reportFailure(interaction, err) {
   }
 }
 
-async function handleCook(interaction) {
-  const raw = interaction.options.getString('ingredients', true);
-  const items = raw
+function splitItems(raw) {
+  return raw
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+async function handleCook(interaction) {
+  const items = splitItems(interaction.options.getString('ingredients', true));
   if (items.length === 0) {
     await interaction.editReply('Please provide at least one ingredient.');
     return;
@@ -96,6 +100,59 @@ async function handleCook(interaction) {
   }
   try {
     const stdout = await runScript(args);
+    await postMarkdown(interaction, stdout);
+  } catch (err) {
+    await reportFailure(interaction, err);
+  }
+}
+
+async function handleKitchen(interaction) {
+  const sub = interaction.options.getSubcommand();
+  const args = [];
+  switch (sub) {
+    case 'list': {
+      args.push('list');
+      const which = interaction.options.getString('which');
+      if (which) args.push(which);
+      break;
+    }
+    case 'add': {
+      const list = interaction.options.getString('list', true);
+      const items = splitItems(interaction.options.getString('items', true));
+      if (items.length === 0) {
+        await interaction.editReply('Please provide at least one item.');
+        return;
+      }
+      args.push('add', list, ...items);
+      if (interaction.options.getBoolean('urgent')) args.push('--urgent');
+      break;
+    }
+    case 'remove': {
+      const list = interaction.options.getString('list', true);
+      const items = splitItems(interaction.options.getString('items', true));
+      if (items.length === 0) {
+        await interaction.editReply('Please provide at least one item.');
+        return;
+      }
+      args.push('remove', list, ...items);
+      break;
+    }
+    case 'urgent':
+    case 'unurgent': {
+      const items = splitItems(interaction.options.getString('items', true));
+      if (items.length === 0) {
+        await interaction.editReply('Please provide at least one item.');
+        return;
+      }
+      args.push(sub, ...items);
+      break;
+    }
+    default:
+      await interaction.editReply(`Unknown subcommand: ${sub}`);
+      return;
+  }
+  try {
+    const stdout = await runScript(args, KITCHEN_SCRIPT);
     await postMarkdown(interaction, stdout);
   } catch (err) {
     await reportFailure(interaction, err);
@@ -138,6 +195,9 @@ client.on('interactionCreate', async (interaction) => {
     switch (interaction.commandName) {
       case 'cook':
         await handleCook(interaction);
+        break;
+      case 'kitchen':
+        await handleKitchen(interaction);
         break;
       case 'today':
         await handleDaily(interaction, 0);

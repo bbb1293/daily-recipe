@@ -32,6 +32,107 @@ const commands = [
     name: 'tomorrow',
     description: "Fetch tomorrow's daily recipe (generate if missing)",
   },
+  {
+    name: 'kitchen',
+    description: 'Manage your ingredients and pantry lists',
+    options: [
+      {
+        type: 1, // SUB_COMMAND
+        name: 'list',
+        description: 'Show current ingredients and/or pantry',
+        options: [
+          {
+            type: 3, // STRING
+            name: 'which',
+            description: 'Which list (default: both)',
+            required: false,
+            choices: [
+              { name: 'ingredients', value: 'ingredients' },
+              { name: 'pantry', value: 'pantry' },
+            ],
+          },
+        ],
+      },
+      {
+        type: 1,
+        name: 'add',
+        description: 'Add items to a list',
+        options: [
+          {
+            type: 3,
+            name: 'list',
+            description: 'Which list to add to',
+            required: true,
+            choices: [
+              { name: 'ingredients', value: 'ingredients' },
+              { name: 'pantry', value: 'pantry' },
+            ],
+          },
+          {
+            type: 3,
+            name: 'items',
+            description: 'Comma-separated, e.g. "chicken thighs, spinach"',
+            required: true,
+          },
+          {
+            type: 5, // BOOLEAN
+            name: 'urgent',
+            description: 'Mark these as urgent (ingredients only)',
+            required: false,
+          },
+        ],
+      },
+      {
+        type: 1,
+        name: 'remove',
+        description: 'Remove items from a list',
+        options: [
+          {
+            type: 3,
+            name: 'list',
+            description: 'Which list to remove from',
+            required: true,
+            choices: [
+              { name: 'ingredients', value: 'ingredients' },
+              { name: 'pantry', value: 'pantry' },
+            ],
+          },
+          {
+            type: 3,
+            name: 'items',
+            description: 'Comma-separated items to remove',
+            required: true,
+          },
+        ],
+      },
+      {
+        type: 1,
+        name: 'urgent',
+        description: 'Mark ingredients as urgent',
+        options: [
+          {
+            type: 3,
+            name: 'items',
+            description: 'Comma-separated ingredients to mark urgent',
+            required: true,
+          },
+        ],
+      },
+      {
+        type: 1,
+        name: 'unurgent',
+        description: 'Clear urgent from ingredients',
+        options: [
+          {
+            type: 3,
+            name: 'items',
+            description: 'Comma-separated ingredients to clear',
+            required: true,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);
