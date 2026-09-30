@@ -1,6 +1,14 @@
 # Copy this file to config.sh and fill in values.
 # config.sh is gitignored so secrets stay local.
 
+# Recipe generator: "codex" (default, GPT via Codex CLI) or "claude".
+# For Codex, install a current CLI and run `codex login` with your ChatGPT account.
+# RECIPE_PROVIDER="codex"
+
+# Optional model supported by the selected provider. Empty uses its default.
+# Codex recipe runs skip ~/.codex/config.toml; set the model here if desired.
+# RECIPE_MODEL=""
+
 # Discord webhook URL for --notify discord.
 # Create one in Discord: Server Settings → Integrations → Webhooks → New Webhook.
 # DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/XXXX/YYYY"
