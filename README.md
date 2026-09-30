@@ -181,6 +181,38 @@ Run the bot in `bot/` to drive the tool from Discord. Guild-scoped slash command
 - `/cook ingredients: chicken, spinach` — one ad-hoc recipe (the `--use` flow).
 - `/today`, `/tomorrow` — the daily recipe (cached if present, else generated).
 - `/kitchen ...` — manage your lists (see [Your lists](#your-lists)).
+- Mention the bot with a natural-language request, such as `@Daily Recipe cook frozen pork and cabbage`.
+
+### Natural-language messages
+
+Mention the bot in the configured Discord server and describe what you want in English or another language:
+
+```text
+@Daily Recipe cook frozen pork and cabbage
+@Daily Recipe add spinach to my ingredients and mark it urgent
+@Daily Recipe show my pantry
+@Daily Recipe remove cabbage from my ingredients
+@Daily Recipe regenerate tomorrow's recipes
+```
+
+Codex CLI interprets the request using your current kitchen lists, then the bot runs the existing `recipe` / `kitchen` commands and replies in the same channel. Multi-step requests execute in order; ambiguous ingredient matches stop the sequence so you can choose the right item. Unsupported or unclear requests get a clarification rather than an action. Recipe replies are split across Discord messages without truncating the steps. The existing `--notify discord` option remains available for CLI runs; bot requests deliver their result in the channel where you asked.
+
+The interpreter uses `gpt-5.6-luna` and the saved Codex login. It produces a validated action plan with [`--output-schema`](https://learn.chatgpt.com/docs/non-interactive-mode), then the bot supplies argument arrays to the CLIs. Model output is never executed as a shell command. You can select another available interpretation model with `DISCORD_NL_MODEL`; this is independent of `RECIPE_PROVIDER` / `RECIPE_MODEL`, which control recipe generation.
+
+Messages must mention the bot and come from the configured `DISCORD_GUILD_ID`; bot and webhook messages are ignored. You do not need to enable the privileged Message Content intent because Discord provides content for messages that mention your app. See [Discord's message-content exceptions](https://docs.discord.com/developers/gateway/you-might-not-need-a-privileged-intent). The bot needs permission to view the channel and send messages there.
+
+Natural-language requests are enabled by default. Optional settings in `config.sh`:
+
+```sh
+# Set false to disable natural-language requests.
+DISCORD_NL_ENABLED="true"
+DISCORD_NL_MODEL="gpt-5.6-luna"
+# Restrict natural-language requests to these Discord user IDs, if desired.
+# Unset or empty permits everyone in the configured server to mention the bot.
+DISCORD_NL_ALLOWED_USER_IDS="123456789012345678"
+```
+
+Restart the bot after changing these settings or updating its code. No slash-command registration change is needed for natural-language messages. Only one natural-language request is processed at a time; if one is already running, the bot asks you to try again after it finishes.
 
 ### Setup
 
@@ -224,9 +256,10 @@ Uninstall the bot: `launchctl unload` then `rm` `~/Library/LaunchAgents/com.user
 ```sh
 zsh test/kitchen.test.sh
 zsh test/generate-recipe.test.sh
+npm test --prefix bot
 ```
 
-Provider tests use disposable ingredient lists and mocked CLIs; they do not call models or send notifications.
+Provider and natural-language tests use disposable data or mocked CLIs and Discord messages; they do not call models or send notifications.
 
 ---
 

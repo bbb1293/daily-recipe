@@ -5,6 +5,8 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 
 const { Client, GatewayIntentBits } = require('discord.js');
+const { createNaturalLanguageProcessor } = require('./natural-language');
+const { createMessageHandler } = require('./message-handler');
 
 const REQUIRED = ['DISCORD_BOT_TOKEN', 'DISCORD_APPLICATION_ID', 'DISCORD_GUILD_ID'];
 for (const key of REQUIRED) {
@@ -182,10 +184,27 @@ async function handleDaily(interaction, offsetDays) {
   await postMarkdown(interaction, markdown);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+let handleNaturalLanguageMessage;
 
 client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
+  if (process.env.DISCORD_NL_ENABLED !== 'false') {
+    const { processRequest } = createNaturalLanguageProcessor();
+    handleNaturalLanguageMessage = createMessageHandler({
+      botId: client.user.id,
+      guildId: process.env.DISCORD_GUILD_ID,
+      processRequest,
+      allowedUserIds: (process.env.DISCORD_NL_ALLOWED_USER_IDS || '').split(',').map((id) => id.trim()).filter(Boolean),
+    });
+    console.log('Natural-language kitchen requests enabled: mention the bot to use them.');
+  }
+});
+
+client.on('messageCreate', async (message) => {
+  if (!handleNaturalLanguageMessage) return;
+  try { await handleNaturalLanguageMessage(message); }
+  catch (error) { console.error('message handler failed:', error); }
 });
 
 client.on('interactionCreate', async (interaction) => {

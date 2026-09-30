@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actions", "reply"],
+  "properties": {
+    "reply": { "type": "string" },
+    "actions": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "list", "items", "date", "force", "urgent"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["cook", "daily", "list", "add", "remove", "urgent", "unurgent"] },
+          "list": { "type": "string", "enum": ["ingredients", "pantry", "both", "none"] },
+          "items": { "type": "array", "maxItems": 20, "items": { "type": "string" } },
+          "date": { "type": "string" },
+          "force": { "type": "boolean" },
+          "urgent": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
