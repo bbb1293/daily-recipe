@@ -5,9 +5,10 @@
 # For Codex, install a current CLI and run `codex login` with your ChatGPT account.
 # RECIPE_PROVIDER="codex"
 
-# Optional model supported by the selected provider. Empty uses its default.
+# Optional model override supported by the selected provider.
+# Unset or empty: Codex uses gpt-5.6-luna; Claude uses its CLI's default model.
 # Codex recipe runs skip ~/.codex/config.toml; set the model here if desired.
-# RECIPE_MODEL=""
+# RECIPE_MODEL="gpt-5.6-luna"
 
 # Discord webhook URL for --notify discord.
 # Create one in Discord: Server Settings → Integrations → Webhooks → New Webhook.

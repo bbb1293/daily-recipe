@@ -47,7 +47,8 @@ Options:
   --print                 Print the recipe to stdout instead of opening a dialog
   --notify discord        Post the recipe to a Discord webhook
   --provider claude|codex  Choose the recipe generator (default: RECIPE_PROVIDER or codex)
-  --model MODEL           Override RECIPE_MODEL; otherwise use the CLI's default model
+  --model MODEL           Override RECIPE_MODEL (Codex default: gpt-5.6-luna;
+                          Claude default: the Claude CLI's default model)
   --use INGREDIENT        Generate one recipe centered on INGREDIENT.
                           Repeatable: --use chicken --use spinach.
                           Cannot be combined with --date/--today/--force.
@@ -109,8 +110,12 @@ log() {
 generate_markdown() (
   local prompt="$1"
   local work_dir result_code=0
+  local model="$RECIPE_MODEL"
   local model_args=()
-  [[ -n "$RECIPE_MODEL" ]] && model_args=(--model "$RECIPE_MODEL")
+  if [[ -z "$model" && "$RECIPE_PROVIDER" == "codex" ]]; then
+    model="gpt-5.6-luna"
+  fi
+  [[ -n "$model" ]] && model_args=(--model "$model")
 
   if ! command -v "$RECIPE_PROVIDER" >/dev/null 2>&1; then
     echo "$RECIPE_PROVIDER CLI not found on PATH. See README.md for setup." >&2

@@ -2,7 +2,7 @@
 
 ## Layout
 
-- `generate-recipe.sh` — main script. Builds a prompt from the data files and recent history, calls Codex CLI (default) or Claude Code via `RECIPE_PROVIDER` / `--provider`, writes markdown + HTML output, and dispatches notifications (dialog, Discord). `RECIPE_MODEL` / `--model` optionally selects a model. Codex recipe runs reuse saved authentication but skip coding config and project instructions.
+- `generate-recipe.sh` — main script. Builds a prompt from the data files and recent history, calls Codex CLI (default) or Claude Code via `RECIPE_PROVIDER` / `--provider`, writes markdown + HTML output, and dispatches notifications (dialog, Discord). Codex defaults to `gpt-5.6-luna`; Claude uses its CLI's default model. `RECIPE_MODEL` / `--model` optionally overrides the model. Codex recipe runs reuse saved authentication but skip coding config and project instructions.
 - `kitchen.sh` — manage the data files from the CLI: `kitchen list`, `kitchen add <list> <item>... [--urgent]`, `kitchen remove <list> <item>...`, `kitchen urgent <item>...`, `kitchen unurgent <item>...`. Matches items case-insensitively; mutations try exact first, then unique substring, and report multiple substring matches without changing files. Honors `KITCHEN_DATA_DIR` for testing. Shared by the Discord `/kitchen` command.
 - `test/kitchen.test.sh` — dependency-free zsh tests for `kitchen.sh`. Run with `zsh test/kitchen.test.sh`.
 - `test/generate-recipe.test.sh` — isolated zsh integration tests for both recipe providers using mocked CLIs. Run with `zsh test/generate-recipe.test.sh`; no model calls or notifications.

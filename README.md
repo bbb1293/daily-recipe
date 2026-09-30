@@ -107,7 +107,7 @@ Codex is the default for the CLI, nightly job, and Discord bot when `RECIPE_PROV
 RECIPE_PROVIDER="claude"
 ```
 
-Remove that setting or set `RECIPE_PROVIDER="codex"` to use GPT again. `--provider` overrides the configured provider for one run. Optionally set `RECIPE_MODEL` to a model supported by the selected provider, or use `--model MODEL` for one run; empty uses the CLI's default model. When changing providers, clear or change any provider-specific model setting too.
+Remove that setting or set `RECIPE_PROVIDER="codex"` to use GPT again. Codex recipes use **GPT-5.6 Luna (`gpt-5.6-luna`)** by default. `--provider` overrides the configured provider for one run. Optionally set `RECIPE_MODEL` to a model supported by the selected provider, or use `--model MODEL` for one run. An unset or empty model setting uses GPT-5.6 Luna for Codex and the Claude CLI's default model for Claude. When changing providers, clear or change any provider-specific model setting too.
 
 The generator uses [`codex exec`](https://learn.chatgpt.com/docs/non-interactive-mode) with saved authentication, a temporary working directory, and a read-only sandbox. It skips your Codex coding configuration and `AGENTS.md` instructions for recipe generation, disables shell tools, subagents, and web search, and captures only the final recipe. Set model preferences in `RECIPE_MODEL` rather than `~/.codex/config.toml` for these runs. Errors go to `generate-recipe.log`.
 

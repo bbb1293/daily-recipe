@@ -75,6 +75,7 @@ check() {
 run_recipe --use eggs
 check 'Codex is the default' grep -qx codex "$TEST_CALLS"
 check 'default Codex generation succeeds' test "$RC" -eq 0
+check 'default Codex model is GPT-5.6 Luna' grep -qx '<gpt-5.6-luna>' "$TEST_ARGS"
 check 'default output is recipe markdown' grep -qx '# Test recipe' "$OUT"
 check 'default output omits progress' test "$(grep -c progress "$OUT" || true)" -eq 0
 
@@ -83,9 +84,14 @@ run_recipe --provider claude --use eggs
 check 'Claude can be selected explicitly' grep -qx claude "$TEST_CALLS"
 check 'Claude succeeds' test "$RC" -eq 0
 check 'Claude receives print mode and disabled tools' grep -qx '<-p>' "$TEST_ARGS"
+check 'Claude does not receive the Codex default model' test "$(grep -c '<--model>' "$TEST_ARGS" || true)" -eq 0
 check 'Claude receives the original prompt' grep -q 'Named ingredients' "$TEST_PROMPT"
 check 'ad-hoc output is recipe markdown' grep -qx '# Test recipe' "$OUT"
 check 'ad-hoc output omits progress' test "$(grep -c progress "$OUT" || true)" -eq 0
+
+printf 'RECIPE_MODEL=""\n' > "$TEST_DIR/project/config.sh"
+run_recipe --use eggs
+check 'an empty model setting uses GPT-5.6 Luna' grep -qx '<gpt-5.6-luna>' "$TEST_ARGS"
 
 cat > "$TEST_DIR/project/config.sh" <<'CONFIG'
 RECIPE_PROVIDER="codex"
@@ -97,6 +103,7 @@ run_recipe --use eggs --use spinach
 check 'config selects Codex' grep -qx codex "$TEST_CALLS"
 check 'Codex succeeds' test "$RC" -eq 0
 check 'configured model is passed as an argument' grep -qx '<configured-model>' "$TEST_ARGS"
+check 'configured model replaces the default' test "$(grep -c '<gpt-5.6-luna>' "$TEST_ARGS" || true)" -eq 0
 check 'Codex uses a read-only sandbox' grep -qx '<read-only>' "$TEST_ARGS"
 check 'Codex skips coding config' grep -qx '<--ignore-user-config>' "$TEST_ARGS"
 check 'all named ingredients reach the prompt' grep -q 'eggs, spinach' "$TEST_PROMPT"
