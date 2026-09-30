@@ -1,6 +1,6 @@
 # daily-recipe
 
-Generates **three on-hand recipes plus one stretch recipe** each night for the next day, based on what's in your kitchen. It reads `ingredients.txt` and `pantry.txt`, asks the `claude` CLI for recipes that use only those items (plus a stretch dish that may need 1–2 extras), renders styled HTML, and pops a macOS dialog at 10 PM.
+Generates **three on-hand recipes plus one stretch recipe** each night for the next day, based on what's in your kitchen. It reads `ingredients.txt` and `pantry.txt`, asks Claude Code or Codex CLI for recipes that use only those items (plus a stretch dish that may need 1–2 extras), renders styled HTML, and pops a macOS dialog at 10 PM.
 
 ---
 
@@ -13,6 +13,7 @@ Generates **three on-hand recipes plus one stretch recipe** each night for the n
 - **Varied.** The last 3 days of recipes are fed back as "avoid repeating".
 - **Scheduled.** A `launchd` job runs nightly and opens the HTML in your browser.
 - **CLI + Discord.** A `recipe` command for ad-hoc runs; optional webhook posting and a slash-command bot.
+- **GPT or Claude.** Use Codex CLI with your ChatGPT sign-in by default, or select Claude Code.
 
 ---
 
@@ -20,7 +21,7 @@ Generates **three on-hand recipes plus one stretch recipe** each night for the n
 
 macOS, plus:
 
-- [Claude Code CLI](https://claude.com/claude-code) (`claude` on PATH) — generates the recipes.
+- One recipe generator on PATH: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) (`codex`, default, for GPT), or [Claude Code CLI](https://claude.com/claude-code) (`claude`). Codex integration was tested with CLI 0.149.0; use a current version that supports `--ignore-user-config` and `--ephemeral`.
 - [pandoc](https://pandoc.org/) — markdown → styled HTML.
 - `zsh` (default on macOS).
 - `jq` — only for `--notify discord`.
@@ -73,6 +74,9 @@ recipe --date 2026-05-01         # a specific date
 recipe --force                   # regenerate even if the file exists
 recipe --print                   # force print to stdout
 recipe --notify discord          # also post to a Discord webhook
+recipe --provider codex --today --force --print  # generate today's recipes with GPT
+recipe --provider codex --use eggs              # one GPT recipe
+recipe --provider claude --use eggs             # one Claude recipe
 recipe --use chicken             # one recipe centered on an ingredient
 recipe --use chicken --use rice  # repeatable; all named items must appear
 recipe --help
@@ -86,6 +90,31 @@ recipe --help
 
 ---
 
+## GPT recipes with your ChatGPT account
+
+Install [Codex CLI](https://learn.chatgpt.com/docs/codex/cli), then sign in once:
+
+```sh
+codex login
+codex login status
+```
+
+Choose ChatGPT sign-in to use your account's Codex access and usage limits. A separate OpenAI API key is not needed with this sign-in method. See [OpenAI's authentication guide](https://learn.chatgpt.com/docs/auth).
+
+Codex is the default for the CLI, nightly job, and Discord bot when `RECIPE_PROVIDER` is unset or empty. To use Claude Code instead, add this to `config.sh` (create the file from `config.sh.example` if needed):
+
+```sh
+RECIPE_PROVIDER="claude"
+```
+
+Remove that setting or set `RECIPE_PROVIDER="codex"` to use GPT again. Codex recipes use **GPT-5.6 Luna (`gpt-5.6-luna`)** by default. `--provider` overrides the configured provider for one run. Optionally set `RECIPE_MODEL` to a model supported by the selected provider, or use `--model MODEL` for one run. An unset or empty model setting uses GPT-5.6 Luna for Codex and the Claude CLI's default model for Claude. When changing providers, clear or change any provider-specific model setting too.
+
+The generator uses [`codex exec`](https://learn.chatgpt.com/docs/non-interactive-mode) with saved authentication, a temporary working directory, and a read-only sandbox. It skips your Codex coding configuration and `AGENTS.md` instructions for recipe generation, disables shell tools, subagents, and web search, and captures only the final recipe. Set model preferences in `RECIPE_MODEL` rather than `~/.codex/config.toml` for these runs. Errors go to `generate-recipe.log`.
+
+Daily recipes stay cached by date when you switch providers; use `--force` to regenerate them. A failed or empty response leaves an existing recipe intact. Discord `/cook`, `/today`, and `/tomorrow` use the same configured generator; cached daily recipes are reused.
+
+---
+
 ## File layout
 
 Gitignored paths each ship a tracked `.example` (or `.template`) starter.
@@ -93,6 +122,8 @@ Gitignored paths each ship a tracked `.example` (or `.template`) starter.
 ```
 .
 ├── generate-recipe.sh   # nightly recipe generator (installed as `recipe`)
+├── AGENTS.md            # Codex project instructions (standalone copy of CLAUDE.md)
+├── CLAUDE.md            # matching Claude Code project instructions
 ├── kitchen.sh           # manage your ingredient/pantry lists from the CLI
 ├── recipe.css           # stylesheet for the rendered HTML
 ├── ingredients.txt      # current ingredients         (gitignored)
@@ -100,7 +131,7 @@ Gitignored paths each ship a tracked `.example` (or `.template`) starter.
 ├── config.sh            # local secrets, e.g. DISCORD_WEBHOOK_URL (gitignored)
 ├── recipes/             # generated .md + .html output (gitignored)
 ├── bot/                 # Discord bot (index.js, register-commands.js)
-├── test/                # zsh tests (kitchen.test.sh)
+├── test/                # zsh tests for kitchen management and recipe providers
 ├── launchd/             # .plist templates for the nightly job + the bot
 └── *.log                # per-run and launchd logs     (gitignored)
 ```
@@ -138,6 +169,7 @@ Discord mirrors these as `/kitchen list|add|remove|urgent|unurgent` (the `items`
 - **HTML look** — edit `recipe.css` (system fonts; light/dark via `prefers-color-scheme`; the `.missing` class styles the buy tag).
 - **The prompt** — in `generate-recipe.sh` (search `You are a home cook`): Part A (on-hand) / Part B (stretch), criteria, output format, history window (3 days).
 - **Language** — set `RECIPE_LANGUAGE` in `config.sh` (e.g. `"Korean"`, `"日本語"`). The recipe body is translated; UI strings and the `(MISSING — need to buy)` tag stay English so the HTML highlighter keeps working. Empty = English. Sourced each run, no restart.
+- **Recipe generator** — set `RECIPE_PROVIDER="claude"` or `"codex"` in `config.sh`; optionally set `RECIPE_MODEL`. Both providers use the same recipe prompts, language, ingredient lists, and history.
 - **Disable Discord posting** — remove the `--notify` / `discord` lines from `ProgramArguments` in the plist, then reload it.
 
 ---
@@ -181,7 +213,20 @@ Uninstall the bot: `launchctl unload` then `rm` `~/Library/LaunchAgents/com.user
 - **"Open" did nothing** — install `pandoc` so an `.html` is generated (opening `.md` alone often fails).
 - **"ingredients.txt is empty, skipping"** — the file is empty or all comments.
 - **`claude` fails** — usually an expired auth session; run `claude` once interactively. See `generate-recipe.log`.
+- **`codex` fails** — check `codex login status`, run `codex login` if needed, and check `generate-recipe.log` for usage limits or model errors. Upgrade Codex if it reports an unknown option. The scheduled job needs to run as the same macOS user who signed in.
+- **CLI not found** — install the selected provider and ensure it is on PATH. The script also checks `~/.local/bin`, `/opt/homebrew/bin`, and `/usr/local/bin` for scheduled runs.
 - **No Discord posts** — look for `DISCORD_WEBHOOK_URL not set` in the log, or a bad/expired webhook URL.
+
+---
+
+## Tests
+
+```sh
+zsh test/kitchen.test.sh
+zsh test/generate-recipe.test.sh
+```
+
+Provider tests use disposable ingredient lists and mocked CLIs; they do not call models or send notifications.
 
 ---
 

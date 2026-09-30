@@ -9,12 +9,16 @@ PANTRY_FILE="$FOOD_DIR/pantry.txt"
 RECIPES_DIR="$FOOD_DIR/recipes"
 LOG_FILE="$FOOD_DIR/generate-recipe.log"
 
-export PATH="/Users/mac/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+# Preserve caller-installed CLIs; include common locations for launchd runs.
+export PATH="$PATH:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 # Optional local config (gitignored). See config.sh.example.
 if [[ -f "$FOOD_DIR/config.sh" ]]; then
   source "$FOOD_DIR/config.sh"
 fi
+
+RECIPE_PROVIDER="${RECIPE_PROVIDER:-codex}"
+RECIPE_MODEL="${RECIPE_MODEL:-}"
 
 # Optional output-language directive. RECIPE_LANGUAGE is a free-form string
 # (e.g. "Korean", "Japanese", "Italian") sourced from config.sh; unset means
@@ -42,6 +46,9 @@ Options:
   --force                 Regenerate even if the target file exists
   --print                 Print the recipe to stdout instead of opening a dialog
   --notify discord        Post the recipe to a Discord webhook
+  --provider claude|codex  Choose the recipe generator (default: RECIPE_PROVIDER or codex)
+  --model MODEL           Override RECIPE_MODEL (Codex default: gpt-5.6-luna;
+                          Claude default: the Claude CLI's default model)
   --use INGREDIENT        Generate one recipe centered on INGREDIENT.
                           Repeatable: --use chicken --use spinach.
                           Cannot be combined with --date/--today/--force.
@@ -65,11 +72,25 @@ while [[ $# -gt 0 ]]; do
     --force) FORCE=true; shift ;;
     --print) FORCE_PRINT=true; shift ;;
     --notify) NOTIFY="$2"; shift 2 ;;
+    --provider|--model)
+      if (( $# < 2 )) || [[ -z "$2" || "$2" == -* ]]; then
+        echo "$1 requires a value" >&2
+        exit 2
+      fi
+      if [[ "$1" == "--provider" ]]; then RECIPE_PROVIDER="$2"
+      else RECIPE_MODEL="$2"; fi
+      shift 2
+      ;;
     --use) USE_ITEMS+=("$2"); shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+case "$RECIPE_PROVIDER" in
+  claude|codex) ;;
+  *) echo "Unknown recipe provider: $RECIPE_PROVIDER (use claude or codex)" >&2; exit 2 ;;
+esac
 
 if [[ -t 1 ]] || [[ "$FORCE_PRINT" == "true" ]]; then
   INTERACTIVE=true
@@ -83,6 +104,54 @@ log() {
     echo "$*" >&2
   fi
 }
+
+# Print only a successful, nonempty final response. In particular, Codex's
+# progress output must never become part of the recipe or a cached failure.
+generate_markdown() (
+  local prompt="$1"
+  local work_dir result_code=0
+  local model="$RECIPE_MODEL"
+  local model_args=()
+  if [[ -z "$model" && "$RECIPE_PROVIDER" == "codex" ]]; then
+    model="gpt-5.6-luna"
+  fi
+  [[ -n "$model" ]] && model_args=(--model "$model")
+
+  if ! command -v "$RECIPE_PROVIDER" >/dev/null 2>&1; then
+    echo "$RECIPE_PROVIDER CLI not found on PATH. See README.md for setup." >&2
+    return 127
+  fi
+
+  work_dir=$(mktemp -d) || return 1
+  trap 'rm -rf -- "$work_dir"' EXIT
+
+  case "$RECIPE_PROVIDER" in
+    claude)
+      printf '%s' "$prompt" | perl -e 'alarm 600; exec @ARGV' \
+        claude -p --tools "" "${model_args[@]}" > "$work_dir/recipe.md" \
+        || result_code=$?
+      ;;
+    codex)
+      # Use saved authentication, but avoid coding config/instructions for this
+      # text-only task. Run outside the project with a read-only sandbox.
+      printf '%s' "$prompt" | perl -e 'alarm 600; exec @ARGV' \
+        codex exec --ignore-user-config --ephemeral --skip-git-repo-check \
+        --sandbox read-only --color never --cd "$work_dir" \
+        --disable shell_tool --disable multi_agent \
+        -c 'approval_policy="never"' -c 'web_search="disabled"' \
+        -c project_doc_max_bytes=0 \
+        --output-last-message "$work_dir/recipe.md" "${model_args[@]}" - \
+        > /dev/null || result_code=$?
+      ;;
+  esac
+
+  (( result_code == 0 )) || return "$result_code"
+  if [[ ! -f "$work_dir/recipe.md" ]] || ! grep -q '[^[:space:]]' "$work_dir/recipe.md"; then
+    echo "$RECIPE_PROVIDER CLI returned an empty recipe." >&2
+    return 1
+  fi
+  cat "$work_dir/recipe.md"
+)
 
 notify_dialog() {
   [[ -n "$NOTIFY" ]] && return
@@ -228,9 +297,9 @@ One-line description.
 Output only the markdown, no preamble."
 USE_PROMPT="$USE_PROMPT$LANGUAGE_DIRECTIVE"
 
-  log "Generating --use recipe for: $NAMED_JOINED"
+  log "Generating --use recipe with $RECIPE_PROVIDER for: $NAMED_JOINED"
 
-  if RECIPE_MD=$(printf '%s' "$USE_PROMPT" | perl -e 'alarm 600; exec @ARGV' claude -p --tools "" 2>> "$LOG_FILE"); then
+  if RECIPE_MD=$(generate_markdown "$USE_PROMPT" 2>> "$LOG_FILE"); then
     log "Generated --use recipe."
     printf '%s\n' "$RECIPE_MD"
     if [[ "$NOTIFY" == "discord" ]]; then
@@ -241,7 +310,7 @@ USE_PROMPT="$USE_PROMPT$LANGUAGE_DIRECTIVE"
     fi
     exit 0
   else
-    log "claude CLI failed for --use, see log above."
+    log "$RECIPE_PROVIDER CLI failed for --use, see log above."
     echo "Recipe generation failed. See $LOG_FILE." >&2
     exit 1
   fi
@@ -374,9 +443,10 @@ One-line description explaining why this is worth a small shop.
 Output only the markdown, no preamble."
 PROMPT="$PROMPT$LANGUAGE_DIRECTIVE"
 
-log "Generating recipes for $TARGET_DATE..."
+log "Generating recipes with $RECIPE_PROVIDER for $TARGET_DATE..."
 
-if printf '%s' "$PROMPT" | perl -e 'alarm 600; exec @ARGV' claude -p --tools "" > "$OUTPUT_FILE" 2>> "$LOG_FILE"; then
+if RECIPE_MD=$(generate_markdown "$PROMPT" 2>> "$LOG_FILE"); then
+  printf '%s\n' "$RECIPE_MD" > "$OUTPUT_FILE"
   log "Wrote $OUTPUT_FILE"
   if render_html "$OUTPUT_FILE" "$HTML_FILE"; then
     log "Rendered $HTML_FILE"
@@ -391,8 +461,7 @@ if printf '%s' "$PROMPT" | perl -e 'alarm 600; exec @ARGV' claude -p --tools "" 
   [[ "$NOTIFY" == "discord" ]] && notify_discord "$OUTPUT_FILE" "**Recipes for $TARGET_DATE**"
   exit 0
 else
-  log "claude CLI failed, see log above."
-  rm -f "$OUTPUT_FILE"
+  log "$RECIPE_PROVIDER CLI failed, see log above."
   if [[ "$INTERACTIVE" == "true" ]]; then
     echo "Recipe generation failed. See $LOG_FILE." >&2
   else
