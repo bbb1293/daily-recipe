@@ -12,6 +12,14 @@ function splitMessage(text, limit = 1900) {
   return parts;
 }
 
+async function postResult(message, progress, text) {
+  const chunks = splitMessage(text);
+  await progress.edit({ content: chunks[0] || 'No result was returned.', allowedMentions: ALLOWED_MENTIONS });
+  for (const content of chunks.slice(1)) {
+    await message.channel.send({ content, allowedMentions: ALLOWED_MENTIONS });
+  }
+}
+
 function createMessageHandler({ botId, guildId, processRequest, allowedUserIds = [], logger = console }) {
   let busy = false;
   return async (message) => {
@@ -27,17 +35,11 @@ function createMessageHandler({ botId, guildId, processRequest, allowedUserIds =
     let progress;
     try {
       progress = await reply('Working on your kitchen request…');
-      const chunks = splitMessage(await processRequest(request));
-      await progress.edit({ content: chunks[0] || 'No result was returned.', allowedMentions: ALLOWED_MENTIONS });
-      for (const content of chunks.slice(1)) await message.channel.send({ content, allowedMentions: ALLOWED_MENTIONS });
+      await postResult(message, progress, await processRequest(request));
     } catch (error) {
       logger.error('natural-language request failed:', error);
       const failure = `${error.completedOutput ? `${error.completedOutput}\n\n` : ''}I couldn’t complete the request. Check the bot logs on the host and try again.`;
-      if (progress) {
-        const chunks = splitMessage(failure);
-        await progress.edit({ content: chunks[0], allowedMentions: ALLOWED_MENTIONS });
-        for (const content of chunks.slice(1)) await message.channel.send({ content, allowedMentions: ALLOWED_MENTIONS });
-      }
+      if (progress) await postResult(message, progress, failure);
     } finally {
       busy = false;
     }

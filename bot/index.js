@@ -1,5 +1,5 @@
 const path = require('node:path');
-require('dotenv').config({ path: path.join(__dirname, '..', 'config.sh') });
+require('./config');
 
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
@@ -7,14 +7,6 @@ const fs = require('node:fs/promises');
 const { Client, GatewayIntentBits } = require('discord.js');
 const { createNaturalLanguageProcessor } = require('./natural-language');
 const { createMessageHandler } = require('./message-handler');
-
-const REQUIRED = ['DISCORD_BOT_TOKEN', 'DISCORD_APPLICATION_ID', 'DISCORD_GUILD_ID'];
-for (const key of REQUIRED) {
-  if (!process.env[key]) {
-    console.error(`missing required config: ${key}`);
-    process.exit(1);
-  }
-}
 
 const PROJECT_DIR = path.resolve(__dirname, '..');
 const RECIPES_DIR = path.join(PROJECT_DIR, 'recipes');

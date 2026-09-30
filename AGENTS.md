@@ -8,6 +8,7 @@
 - `test/generate-recipe.test.sh` — isolated zsh integration tests for both recipe providers using mocked CLIs. Run with `zsh test/generate-recipe.test.sh`; no model calls or notifications.
 - `bot/natural-language.js` and `bot/natural-language.schema.json` — interpret Discord bot mentions with Codex CLI (GPT-5.6 Luna by default), validate the entire plan, and map actions to fixed recipe/kitchen command arguments. Shell tools are disabled for interpretation; model output is never evaluated as shell code.
 - `bot/message-handler.js` — handle human bot mentions in the configured guild, optional user allowlisting, one request at a time, and complete Discord replies split into messages. `bot/index.js` connects this to `messageCreate`; existing slash commands remain available.
+- `bot/config.js` — shared local config loading and required Discord settings checks for the bot listener and slash-command registration.
 - `test/natural-language.test.js` and `test/message-handler.test.js` — dependency-free Node tests for interpretation, validation, execution, routing, concurrency, failures, and full-length replies. Run with `npm test --prefix bot`.
 - `ingredients.txt` — current on-hand ingredients, one per line. `#` comments and blank lines are ignored. A trailing `!urgent` marks items close to expiring; they're surfaced separately in the prompt and every cook-now recipe must use at least one.
 - `pantry.txt` — always-available staples. Same comment/blank rules. Items here are never tagged as MISSING.

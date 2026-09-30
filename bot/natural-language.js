@@ -5,6 +5,9 @@ const { execFile } = require('node:child_process');
 const schema = require('./natural-language.schema.json');
 
 const PROJECT_DIR = path.resolve(__dirname, '..');
+const ACTION_SCHEMA = schema.properties.actions.items;
+const PLAN_KEYS = [...schema.required].sort().join(',');
+const ACTION_KEYS = [...ACTION_SCHEMA.required].sort().join(',');
 
 function runCommand(file, args, options = {}) {
   const { input = '', ...execOptions } = options;
@@ -22,20 +25,20 @@ function runCommand(file, args, options = {}) {
 
 function validatePlan(plan) {
   if (!plan || typeof plan !== 'object' || Array.isArray(plan)
-      || Object.keys(plan).sort().join(',') !== 'actions,reply'
+      || Object.keys(plan).sort().join(',') !== PLAN_KEYS
       || typeof plan.reply !== 'string' || plan.reply.length > 2000
-      || !Array.isArray(plan.actions) || plan.actions.length > 5) {
+      || !Array.isArray(plan.actions) || plan.actions.length > schema.properties.actions.maxItems) {
     throw new Error('Invalid natural-language plan');
   }
   if (plan.actions.length === 0 && !plan.reply.trim()) throw new Error('Empty plan');
   for (const action of plan.actions) {
-    const properties = schema.properties.actions.items.properties;
+    const properties = ACTION_SCHEMA.properties;
     if (!action || typeof action !== 'object' || Array.isArray(action)
-        || Object.keys(action).sort().join(',') !== 'date,force,items,kind,list,urgent'
+        || Object.keys(action).sort().join(',') !== ACTION_KEYS
         || !properties.kind.enum.includes(action.kind) || !properties.list.enum.includes(action.list)
         || typeof action.date !== 'string' || typeof action.force !== 'boolean'
         || typeof action.urgent !== 'boolean' || !Array.isArray(action.items)
-        || action.items.length > 20 || action.items.some((item) => (
+        || action.items.length > properties.items.maxItems || action.items.some((item) => (
           typeof item !== 'string' || !item.trim() || item !== item.trim()
           || item.length > 200 || /^[#-]/.test(item) || /[\x00-\x1f\x7f]/.test(item)
         ))) throw new Error('Invalid action');
