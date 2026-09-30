@@ -23,6 +23,15 @@
 # DISCORD_APPLICATION_ID="..."
 # DISCORD_GUILD_ID="..."
 
+# Natural-language Discord requests: mention the bot in the configured guild.
+# Enabled by default; false disables the message listener (slash commands still work).
+# DISCORD_NL_ENABLED="true"
+# Codex model for interpreting commands, independent of the recipe provider/model.
+# DISCORD_NL_MODEL="gpt-5.6-luna"
+# Optional comma-separated Discord user IDs allowed to use natural-language requests.
+# Unset or empty allows everyone in the configured guild who mentions the bot.
+# DISCORD_NL_ALLOWED_USER_IDS="123456789012345678"
+
 # Output language for generated recipes. Free-form string passed to the LLM.
 # Examples: "Korean", "Japanese", "Italian", "日本語".
 # Unset or empty → English (default).
